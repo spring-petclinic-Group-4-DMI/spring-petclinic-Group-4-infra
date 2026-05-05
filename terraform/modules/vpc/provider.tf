@@ -20,7 +20,5 @@ terraform {
 provider "aws" {
   region = "us-east-1"
 
-  assume_role {
-    role_arn = "arn:aws:iam::338593158888:role/spc-staging-ue1-iam-ro-terraform"
-  }
+  
 }
