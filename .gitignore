@@ -1,8 +1,16 @@
-
-# Terraform
+# Terraform — never commit these
 **/.terraform/
 **/.terraform.lock.hcl
 *.tfstate
 *.tfstate.backup
 *.tfvars
 !*.tfvars.example
+*.tfplan
+
+# Helm
+*.tgz
+
+# OS / IDE
+.DS_Store
+.idea/
+*.iml
