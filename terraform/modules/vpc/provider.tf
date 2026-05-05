@@ -1,0 +1,26 @@
+terraform {
+  required_version = ">= 1.5"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+
+  backend "s3" {
+    bucket         = "REPLACE-WITH-DEREK-BUCKET-NAME"
+    key            = "terraform/vpc/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "REPLACE-WITH-DEREK-TABLE-NAME"
+    encrypt        = true
+  }
+}
+
+provider "aws" {
+  region = "us-east-1"
+
+  assume_role {
+    role_arn = "arn:aws:iam::338593158888:role/spc-staging-ue1-iam-ro-terraform"
+  }
+}
