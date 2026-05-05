@@ -9,10 +9,10 @@ terraform {
   }
 
   backend "s3" {
-    bucket         = "REPLACE-WITH-DEREK-BUCKET-NAME"
+    bucket         = "spc-staging-ue1-tfstate"
     key            = "terraform/vpc/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "REPLACE-WITH-DEREK-TABLE-NAME"
+    dynamodb_table = "spc-staging-ue1-tfstate-lock"
     encrypt        = true
   }
 }
