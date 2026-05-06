@@ -27,3 +27,13 @@ output "eks_cluster_role_arn" {
   description = "ARN of the EKS cluster role"
   value       = module.iam.eks_cluster_role_arn
 }
+
+output "app_secret_arn" {
+  description = "ARN of the staging application secret"
+  value       = module.app_secrets.secret_arn
+}
+
+output "app_secret_name" {
+  description = "Name of the staging application secret"
+  value       = module.app_secrets.secret_name
+}
