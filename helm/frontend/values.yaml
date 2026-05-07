@@ -1,0 +1,22 @@
+replicaCount: 1
+image:
+  repository: 338593158888.dkr.ecr.us-east-1.amazonaws.com/frontend
+  pullPolicy: IfNotPresent
+  tag: "latest"
+service:
+  type: ClusterIP
+  port: 8080
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+configMap:
+  SPRING_PROFILES_ACTIVE: kubernetes
