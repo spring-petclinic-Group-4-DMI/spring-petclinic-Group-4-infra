@@ -13,3 +13,10 @@ create_secret_version  = false
 mysql_username = "replace-me"
 mysql_password = "replace-me"
 openai_api_key = "replace-me"
+
+domain_name = "petclinic-group4.com"
+staging_alb_name = "petclinic-staging-alb"
+
+# Set to false for this sprint (staging only).
+# Flip to true once the production ALB is provisioned in a later sprint.
+create_prod_records = false
