@@ -107,16 +107,7 @@ module "alb" {
   vpc_id                 = module.vpc.vpc_id
   public_subnet_ids      = module.vpc.public_subnet_ids
   alb_security_group_id  = module.vpc.alb_security_group_id
-
-  # ── Temporary: replace once eks module is merged (Cloud/Infra Eng 2) ────
-  # TODO: Replace with module.eks.cluster_name
-  cluster_name = var.cluster_name
-
-  # ── Temporary: replace once iam module is merged (Cloud/Infra Eng 1) ────
-  # TODO: Replace with module.iam.lb_controller_role_arn
-  lb_controller_role_arn = var.lb_controller_role_arn
-
-
+  cluster_name           = module.eks.cluster_name
+  lb_controller_role_arn = module.iam.lb_controller_role_arn
   acm_certificate_arn    = var.acm_certificate_arn
 }
-

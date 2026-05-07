@@ -143,30 +143,6 @@ variable "acm_certificate_arn" {
 # Each one has a TODO telling you when to remove it.
 
 
-variable "cluster_name" {
-  description = "TODO: Remove once eks module is merged. Will be replaced by module.eks.cluster_name in main.tf."
-  type        = string
-  default     = ""
-}
-
-variable "cluster_endpoint" {
-  description = "TODO: Remove once eks module is merged. Will be replaced by module.eks.cluster_endpoint in main.tf."
-  type        = string
-  default     = ""
-}
-
-variable "cluster_ca_certificate" {
-  description = "TODO: Remove once eks module is merged. Will be replaced by module.eks.cluster_ca_certificate in main.tf."
-  type        = string
-  default     = ""
-}
-
-variable "lb_controller_role_arn" {
-  description = "TODO: Remove once iam module is merged. Will be replaced by module.iam.lb_controller_role_arn in main.tf."
-  type        = string
-  default     = ""
-}
-
 variable "app_namespace" {
   description = "Kubernetes namespace where api-gateway is deployed. Confirm with DevOps Eng 2 (SPC-042-T1)."
   type        = string
