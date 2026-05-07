@@ -1,3 +1,10 @@
+# ──────────────────────────────────────────────────────────────
+# Staging Environment - Main
+# Project:  Spring PetClinic Microservices
+# Region:   us-east-1
+# Owner:    Group 4 DevOps Team
+# ──────────────────────────────────────────────────────────────
+
 terraform {
   required_version = ">= 1.6.0"
   required_providers {
@@ -6,10 +13,22 @@ terraform {
       version = "~> 5.0"
     }
   }
+
+  backend "s3" {
+    bucket         = "spc-staging-ue1-tfstate"
+    key            = "staging/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "spc-staging-ue1-tfstate-lock"
+    encrypt        = true
+  }
 }
 
 provider "aws" {
-  region = var.aws_region
+  region = "us-east-1"
+
+  default_tags {
+    tags = local.common_tags
+  }
 }
 
 locals {
@@ -30,6 +49,15 @@ locals {
     },
     var.additional_secret_values
   )
+}
+
+module "iam" {
+  source = "../../modules/iam"
+
+  environment    = var.environment
+  aws_account_id = var.aws_account_id
+  github_org     = var.github_org
+  common_tags    = local.common_tags
 }
 
 module "ecr" {
