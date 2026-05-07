@@ -26,6 +26,12 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
+variable "repository_prefix" {
+  description = "Prefix for ECR repository names"
+  type        = string
+  default     = "spring-petclinic"
+}
+
 variable "project_code" {
   description = "Short project code used in AWS resource names"
   type        = string

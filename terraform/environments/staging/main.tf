@@ -7,7 +7,6 @@
 
 terraform {
   required_version = ">= 1.6.0"
-
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -52,9 +51,6 @@ locals {
   )
 }
 
-# ──────────────────────────────────────────────────────────────
-# IAM Module
-# ──────────────────────────────────────────────────────────────
 module "iam" {
   source = "../../modules/iam"
 
@@ -64,12 +60,15 @@ module "iam" {
   common_tags    = local.common_tags
 }
 
-# ──────────────────────────────────────────────────────────────
-# Secrets Module
-# ──────────────────────────────────────────────────────────────
-module "app_secrets" {
-  source = "../../modules/secrets"
+module "ecr" {
+  source            = "../../modules/ecr"
+  aws_region        = var.aws_region
+  environment       = var.environment
+  repository_prefix = var.repository_prefix
+}
 
+module "app_secrets" {
+  source                = "../../modules/secrets"
   project_code          = var.project_code
   environment_code      = var.environment_code
   region_code           = var.region_code
@@ -103,7 +102,6 @@ module "alb" {
   aws_region             = var.aws_region
   common_tags            = local.common_tags
   domain_name            = var.domain_name
-
   vpc_id                 = module.vpc.vpc_id
   public_subnet_ids      = module.vpc.public_subnet_ids
   alb_security_group_id  = module.vpc.alb_security_group_id
