@@ -109,3 +109,14 @@ module "alb" {
   lb_controller_role_arn = module.iam.lb_controller_role_arn
   acm_certificate_arn    = var.acm_certificate_arn
 }
+
+module "dns" {
+  source = "../../modules/dns"
+
+  aws_region          = var.aws_region
+  domain_name         = var.domain_name
+  staging_alb_name    = var.staging_alb_name
+  prod_alb_name       = var.prod_alb_name
+  create_prod_records = var.create_prod_records
+  default_tags        = var.default_tags
+}

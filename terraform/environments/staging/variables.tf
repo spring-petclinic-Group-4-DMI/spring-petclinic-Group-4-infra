@@ -126,6 +126,11 @@ variable "domain_name" {
   type        = string
 }
 
+variable "staging_alb_name" {
+  description = "Name of the staging Application Load Balancer as it appears in the AWS console. This is the Name tag or the name field set in the aws_lb resource in SPC-005-T8."
+  type        = string
+}
+
 variable "route53_zone_id" {
   description = "Route 53 hosted zone ID for ACM DNS validation. Needed by the ALB module to validate the SSL certificate."
   type        = string
