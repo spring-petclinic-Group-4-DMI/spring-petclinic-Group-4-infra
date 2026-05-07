@@ -110,3 +110,59 @@ variable "additional_secret_values" {
   sensitive   = true
   default     = {}
 }
+###############################################################################
+# ALB Module variables — SPC-005-T8
+# Add these to environments/staging/variables.tf
+###############################################################################
+
+variable "domain_name" {
+  description = "Base domain for the app e.g. petclinic.example.com. Used by the ALB module for the Ingress host rule and ACM certificate."
+  type        = string
+}
+
+variable "route53_zone_id" {
+  description = "Route 53 hosted zone ID for ACM DNS validation. Needed by the ALB module to validate the SSL certificate."
+  type        = string
+  default     = ""
+}
+
+variable "existing_acm_certificate_arn" {
+  description = "If an ACM certificate already exists, paste its ARN here. The ALB module will use it instead of creating a new one."
+  type        = string
+  default     = ""
+}
+
+variable "acm_certificate_arn" {
+  description = "ARN of the ACM certificate passed into the ALB module for HTTPS termination on port 443."
+  type        = string
+  default     = ""
+}
+
+# ── Temporary variables — replaced by module outputs once teammates merge ─────
+# These exist so you can run terraform plan before other modules are ready.
+# Each one has a TODO telling you when to remove it.
+
+
+variable "app_namespace" {
+  description = "Kubernetes namespace where api-gateway is deployed. Confirm with DevOps Eng 2 (SPC-042-T1)."
+  type        = string
+  default     = "petclinic"
+}
+
+variable "api_gateway_service_name" {
+  description = "Kubernetes Service name for api-gateway. Must match exactly what DevOps Eng 2 used in their Helm chart."
+  type        = string
+  default     = "api-gateway"
+}
+
+variable "api_gateway_service_port" {
+  description = "Port the api-gateway Service listens on. Spring Boot default is 8080."
+  type        = number
+  default     = 8080
+}
+
+variable "lb_controller_chart_version" {
+  description = "Pinned Helm chart version for the AWS Load Balancer Controller. Only change if there is a security advisory."
+  type        = string
+  default     = "1.7.1"
+}
