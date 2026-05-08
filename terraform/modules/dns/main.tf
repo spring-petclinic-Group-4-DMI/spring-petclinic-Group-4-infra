@@ -9,15 +9,11 @@ terraform {
   }
 
   backend "s3" {
-    # Populated via -backend-config flags or CI environment variables.
-    # Matches the S3 + DynamoDB remote state configured in SPC-003-T2.
-    #
-    # Example:
-    #   terraform init \
-    #     -backend-config="bucket=petclinic-group4-tfstate" \
-    #     -backend-config="key=dns/terraform.tfstate" \
-    #     -backend-config="region=us-east-1" \
-    #     -backend-config="dynamodb_table=petclinic-group4-tflock"
+    bucket         = "spc-staging-ue1-tfstate"
+    key            = "dns/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "spc-staging-ue1-tfstate-lock"
+    encrypt        = true
   }
 }
 
