@@ -1,0 +1,22 @@
+aws_region             = "us-east-1"
+project_code           = "spc"
+environment_code       = "stg"
+region_code            = "ue1"
+secret_component       = "app"
+secret_resource_name   = "secret"
+secret_resource_count  = "01"
+db_name                = "petclinic"
+secret_description     = "Application secrets for the staging environment."
+create_secret_version  = false
+
+# Replace with real values locally or inject via CI/CD.
+mysql_username = "replace-me"
+mysql_password = "replace-me"
+openai_api_key = "replace-me"
+
+domain_name = "petclinic-group4.com"
+staging_alb_name = "petclinic-staging-alb"
+
+# Set to false for this sprint (staging only).
+# Flip to true once the production ALB is provisioned in a later sprint.
+create_prod_records = false
