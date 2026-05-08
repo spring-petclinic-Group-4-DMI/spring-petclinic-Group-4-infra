@@ -15,6 +15,7 @@ terraform {
     dynamodb_table = "spc-staging-ue1-tfstate-lock"
     encrypt        = true
   }
+
 }
 
 provider "aws" {
