@@ -190,3 +190,4 @@ variable "db_allocated_storage" {
   description = "Storage size in GB for the staging RDS instance"
   type        = number
   default     = 20
+}
