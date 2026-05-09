@@ -153,7 +153,6 @@ resource "aws_security_group" "alb_sg" {
   }
   tags = merge(local.common_tags, { Name = "spc-stg-ue1-alb-sg" })
 }
-
 resource "aws_security_group" "eks_nodes_sg" {
   name        = "spc-stg-ue1-eks-sg"
   description = "Security group for EKS worker nodes"
@@ -166,6 +165,7 @@ resource "aws_security_group" "eks_nodes_sg" {
     protocol        = "tcp"
     security_groups = [aws_security_group.alb_sg.id]
   }
+
   ingress {
     description = "Pod-to-pod communication"
     from_port   = 0
@@ -173,6 +173,7 @@ resource "aws_security_group" "eks_nodes_sg" {
     protocol    = "-1"
     self        = true
   }
+
   ingress {
     description = "EKS control plane to nodes"
     from_port   = 1025
@@ -180,6 +181,7 @@ resource "aws_security_group" "eks_nodes_sg" {
     protocol    = "tcp"
     cidr_blocks = [var.vpc_cidr]
   }
+
   egress {
     description = "All outbound"
     from_port   = 0
@@ -187,5 +189,6 @@ resource "aws_security_group" "eks_nodes_sg" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
   tags = merge(local.common_tags, { Name = "spc-stg-ue1-eks-sg" })
 }

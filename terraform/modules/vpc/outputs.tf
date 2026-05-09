@@ -34,8 +34,8 @@ output "alb_security_group_id" {
   description = "ID of the ALB security group"
   value       = aws_security_group.alb_sg.id
 }
-output "eks_nodes_security_group_id" {
-  description = "ID of the EKS nodes security group"
+output "eks_node_sg_id" {
+  description = "Security group ID for EKS nodes"
   value       = aws_security_group.eks_nodes_sg.id
 }
 output "internet_gateway_id" {

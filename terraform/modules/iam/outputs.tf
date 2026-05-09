@@ -1,9 +1,3 @@
-# ──────────────────────────────────────────────────────────────
-# IAM Module Outputs
-# Project:  Spring PetClinic Microservices
-# These outputs are consumed by the EKS and CI/CD modules
-# ──────────────────────────────────────────────────────────────
-
 output "github_oidc_provider_arn" {
   description = "ARN of the GitHub Actions OIDC provider"
   value       = aws_iam_openid_connect_provider.github_oidc.arn
@@ -27,4 +21,11 @@ output "eks_node_role_arn" {
 output "eks_cluster_role_arn" {
   description = "ARN of the EKS cluster role for the control plane"
   value       = aws_iam_role.eks_cluster.arn
+}
+
+output "lb_controller_role_arn" {
+  description = "The ARN of the IAM role for the AWS Load Balancer Controller"
+  # Replace 'aws_iam_role.lb_controller' with the actual resource name 
+  # defined inside your IAM module's main.tf
+  value       = aws_iam_role.lb_controller.arn
 }
