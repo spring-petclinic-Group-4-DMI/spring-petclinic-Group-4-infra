@@ -3,22 +3,30 @@
 # ──────────────────────────────────────────────────────────────
 
 terraform {
-  required_version = ">= 1.5.0"
+  required_version = ">= 1.7.0"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
       version = "6.44.0"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.30"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.13"
+    }
   }
 
-  backend "s3" {
-    bucket         = "spc-staging-ue1-tfstate"
-    key            = "dns/terraform.tfstate"
-    region         = "us-east-1"
-    use_lockfile = true  
-    encrypt        = true
-  }
+  # backend "s3" {
+  #   bucket       = "spc-staging-ue1-tfstate"
+  #   key          = "dns/terraform.tfstate"
+  #   region       = "us-east-1"
+  #   use_lockfile = true
+  #   encrypt      = true
+  # }
 }
 
 locals {
@@ -39,6 +47,29 @@ locals {
     },
     var.additional_secret_values
   )
+}
+
+# ── Kubernetes / Helm providers ───────────────────────────────────────────────
+# Auth is sourced from the EKS cluster created by module.eks. The kubernetes/helm
+# resources inside module.alb (LB-controller install + Ingress) need this.
+# Token comes from a fresh AWS-IAM-Authenticator call so it doesn't expire mid-apply.
+
+data "aws_eks_cluster_auth" "main" {
+  name = module.eks.cluster_name
+}
+
+provider "kubernetes" {
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_ca_data)
+  token                  = data.aws_eks_cluster_auth.main.token
+}
+
+provider "helm" {
+  kubernetes {
+    host                   = module.eks.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks.cluster_ca_data)
+    token                  = data.aws_eks_cluster_auth.main.token
+  }
 }
 
 module "iam" {
@@ -86,7 +117,7 @@ module "vpc" {
 module "eks" {
   source = "../../modules/eks"
 
-  cluster_name           = var.cluster_name
+  cluster_name          = var.cluster_name
   vpc_id                = module.vpc.vpc_id
   private_subnet_az1_id = module.vpc.private_subnet_az1_id
   private_subnet_az2_id = module.vpc.private_subnet_az2_id
@@ -99,31 +130,58 @@ module "eks" {
 module "alb" {
   source = "../../modules/alb"
 
-  aws_region             = var.aws_region
-  common_tags            = local.common_tags
-  domain_name            = var.domain_name
-  vpc_id                 = module.vpc.vpc_id
-  public_subnet_ids      = module.vpc.public_subnet_ids
-  alb_security_group_id  = module.vpc.alb_security_group_id
-  cluster_name           = module.eks.cluster_name
-  lb_controller_role_arn = module.iam.lb_controller_role_arn
-  acm_certificate_arn    = var.acm_certificate_arn
+  aws_region                  = var.aws_region
+  common_tags                 = local.common_tags
+  domain_name                 = var.domain_name
+  vpc_id                      = module.vpc.vpc_id
+  public_subnet_ids           = module.vpc.public_subnet_ids
+  alb_security_group_id       = module.vpc.alb_security_group_id
+  cluster_name                = module.eks.cluster_name
+  oidc_issuer_url             = module.eks.oidc_issuer_url
+  oidc_provider_arn           = module.eks.oidc_provider_arn
+  acm_certificate_arn         = module.dns.certificate_arn
+  app_namespace               = var.app_namespace
+  api_gateway_service_name    = var.api_gateway_service_name
+  api_gateway_service_port    = var.api_gateway_service_port
+  lb_controller_chart_version = var.lb_controller_chart_version
 }
 
 module "dns" {
   source = "../../modules/dns"
 
-  aws_region          = var.aws_region
-  domain_name         = var.domain_name
-  staging_alb_name    = var.staging_alb_name
-  prod_alb_name       = var.prod_alb_name
-  create_prod_records = var.create_prod_records
-  default_tags        = var.default_tags
-  alb_security_group_id = module.vpc.alb_security_group_id
-  public_subnet_ids     = module.vpc.public_subnet_ids
+  domain_name  = var.domain_name
+  default_tags = var.default_tags
 }
-  
-  # ── RDS MySQL Module — ───────────────────────────────────
+
+# ── ALB alias records — depend on both module.dns (zone_id) and module.alb (ALB outputs).
+# Kept here in the root rather than in module.dns to avoid a cycle:
+# module.alb consumes module.dns.certificate_arn, so module.dns can't also depend on module.alb.
+
+resource "aws_route53_record" "staging_a" {
+  zone_id = module.dns.hosted_zone_id
+  name    = "staging.${var.domain_name}"
+  type    = "A"
+
+  alias {
+    name                   = module.alb.alb_dns_name
+    zone_id                = module.alb.alb_zone_id
+    evaluate_target_health = true
+  }
+}
+
+resource "aws_route53_record" "staging_aaaa" {
+  zone_id = module.dns.hosted_zone_id
+  name    = "staging.${var.domain_name}"
+  type    = "AAAA"
+
+  alias {
+    name                   = module.alb.alb_dns_name
+    zone_id                = module.alb.alb_zone_id
+    evaluate_target_health = true
+  }
+}
+
+# ── RDS MySQL Module — ───────────────────────────────────
 module "rds" {
   source = "../../modules/rds"
 
@@ -138,5 +196,5 @@ module "rds" {
   allocated_storage         = var.db_allocated_storage
   common_tags               = local.common_tags
 }
-  
+
 

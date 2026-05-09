@@ -54,9 +54,9 @@ resource "aws_iam_policy" "github_actions_ci_policy" {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "ECRAuthentication"
-        Effect = "Allow"
-        Action = ["ecr:GetAuthorizationToken"]
+        Sid      = "ECRAuthentication"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
         Resource = ["*"]
       },
       {
@@ -225,36 +225,7 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
 
-# This policy document allows the EKS OIDC provider to assume this role
-data "aws_iam_policy_document" "lb_controller_assume_role" {
-  statement {
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-    effect  = "Allow"
-
-    condition {
-      test     = "StringEquals"
-      variable = "${replace(var.oidc_issuer_url, "https://", "")}:sub"
-      values   = ["system:serviceaccount:kube-system:aws-load-balancer-controller"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${replace(var.oidc_issuer_url, "https://", "")}:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-
-    principals {
-      identifiers = [var.oidc_provider_arn]
-      type        = "Federated"
-    }
-  }
-}
-
-resource "aws_iam_role" "lb_controller" {
-  name               = "spc-${var.environment}-ue1-iam-ro-lb-controller"
-  assume_role_policy = data.aws_iam_policy_document.lb_controller_assume_role.json
-
-  tags = merge(var.common_tags, {
-    Name = "spc-${var.environment}-ue1-iam-ro-lb-controller"
-  })
-}
+# LB-controller IRSA role lives in module.alb because that module needs the
+# EKS OIDC provider — keeping it here would cause a circular dependency
+# (module.eks consumes module.iam roles, while the LB controller role needs
+# module.eks.oidc_provider_arn).

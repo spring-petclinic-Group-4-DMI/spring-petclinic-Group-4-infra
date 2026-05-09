@@ -1,22 +1,49 @@
-aws_region             = "us-east-1"
-project_code           = "spc"
-environment_code       = "stg"
-region_code            = "ue1"
-secret_component       = "app"
-secret_resource_name   = "secret"
-secret_resource_count  = "01"
-db_name                = "petclinic"
-secret_description     = "Application secrets for the staging environment."
-create_secret_version  = false
+# ── Identity ──────────────────────────────────────────────────
+environment    = "stg"
+aws_region     = "us-east-1"
+aws_account_id = "338593158888"
 
-# Replace with real values locally or inject via CI/CD.
+# ── GitHub ────────────────────────────────────────────────────
+github_org = "spring-petclinic-Group-4-DMI"
+
+# ── Naming convention ─────────────────────────────────────────
+project_code     = "spc"
+environment_code = "stg"
+region_code      = "ue1"
+
+# ── ECR ───────────────────────────────────────────────────────
+# Empty so repos are named e.g. "customers-service" — matches helm/*/values.yaml image refs.
+repository_prefix = ""
+
+# ── Secrets Manager ───────────────────────────────────────────
+secret_component      = "app"
+secret_resource_name  = "secret"
+secret_resource_count = "01"
+secret_description    = "Application secrets for the staging environment."
+create_secret_version = false
+kms_key_id            = null
+
+# ── Database credentials (replace with real values locally or inject via CI/CD) ─
 mysql_username = "replace-me"
 mysql_password = "replace-me"
+db_name        = "petclinic"
+
+# ── RDS sizing ────────────────────────────────────────────────
+db_instance_class    = "db.t3.micro"
+db_allocated_storage = 20
+
+# ── OpenAI ────────────────────────────────────────────────────
 openai_api_key = "replace-me"
 
+# ── Domain ────────────────────────────────────────────────────
 domain_name = "petclinic-group4.com"
-staging_alb_name = "petclinic-staging-alb"
 
-# Set to false for this sprint (staging only).
-# Flip to true once the production ALB is provisioned in a later sprint.
-create_prod_records = false
+# ── Kubernetes defaults ───────────────────────────────────────
+# Must match the destination namespace in argocd/applications/*.yaml.
+app_namespace               = "petclinic-staging"
+api_gateway_service_name    = "api-gateway"
+api_gateway_service_port    = 8080
+lb_controller_chart_version = "1.7.1"
+
+# ── Additional secrets ────────────────────────────────────────
+additional_secret_values = {}

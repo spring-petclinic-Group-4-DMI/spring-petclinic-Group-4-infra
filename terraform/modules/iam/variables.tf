@@ -31,15 +31,3 @@ variable "common_tags" {
   type        = map(string)
   default     = {}
 }
-
-variable "oidc_issuer_url" {
-  description = "OIDC issuer URL of the EKS cluster — from EKS module output"
-  type        = string
-  default     = ""
-}
-
-variable "oidc_provider_arn" {
-  description = "ARN of the EKS OIDC provider — from EKS module output"
-  type        = string
-  default     = ""
-}

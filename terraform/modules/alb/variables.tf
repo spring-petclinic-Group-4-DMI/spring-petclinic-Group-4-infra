@@ -42,10 +42,15 @@ variable "cluster_name" {
   type        = string
 }
 
-# ── From IAM module (Cloud/Infra Eng 1 — SPC-016-T1) ─────────────────────────
+# ── From eks module (OIDC inputs needed to build the LB-controller IRSA role) ─
 
-variable "lb_controller_role_arn" {
-  description = "ARN of the IRSA IAM role for the LB Controller. Gives the controller permission to create ALBs in AWS. Created by Cloud/Infra Eng 1 in SPC-016-T1."
+variable "oidc_issuer_url" {
+  description = "OIDC issuer URL of the EKS cluster. Pass module.eks.oidc_issuer_url from the root."
+  type        = string
+}
+
+variable "oidc_provider_arn" {
+  description = "ARN of the EKS OIDC provider. Pass module.eks.oidc_provider_arn from the root."
   type        = string
 }
 
