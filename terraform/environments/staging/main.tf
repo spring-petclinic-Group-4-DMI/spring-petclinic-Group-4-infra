@@ -1,33 +1,23 @@
 # ──────────────────────────────────────────────────────────────
 # Staging Environment - Main
-# Project:  Spring PetClinic Microservices
-# Region:   us-east-1
-# Owner:    Group 4 DevOps Team
 # ──────────────────────────────────────────────────────────────
 
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = ">= 1.5.0"
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "6.44.0"
     }
   }
 
   backend "s3" {
     bucket         = "spc-staging-ue1-tfstate"
-    key            = "staging/terraform.tfstate"
+    key            = "dns/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "spc-staging-ue1-tfstate-lock"
+    use_lockfile = true  
     encrypt        = true
-  }
-}
-
-provider "aws" {
-  region = "us-east-1"
-
-  default_tags {
-    tags = local.common_tags
   }
 }
 
@@ -82,9 +72,6 @@ module "app_secrets" {
   tags                  = local.common_tags
 }
 
-# ── VPC Module — written by Cloud/Infra Eng 1 (SPC-010) ─────────────────────
-# This call block added temporarily to unblock ALB module validation.
-# The vpc module owner should own this block in their PR.
 module "vpc" {
   source = "../../modules/vpc"
 
@@ -94,6 +81,19 @@ module "vpc" {
   private_subnet_az1_cidr = "10.0.3.0/24"
   private_subnet_az2_cidr = "10.0.4.0/24"
   eks_cluster_name        = "spc-stg-ue1-eks-main"
+}
+
+module "eks" {
+  source = "../../modules/eks"
+
+  cluster_name           = var.cluster_name
+  vpc_id                = module.vpc.vpc_id
+  private_subnet_az1_id = module.vpc.private_subnet_az1_id
+  private_subnet_az2_id = module.vpc.private_subnet_az2_id
+  eks_node_sg_id        = module.vpc.eks_node_sg_id
+  eks_cluster_role_arn  = module.iam.eks_cluster_role_arn
+  eks_node_role_arn     = module.iam.eks_node_role_arn
+  # ... add other variables defined in your eks/variables.tf
 }
 
 module "alb" {
@@ -119,16 +119,18 @@ module "dns" {
   prod_alb_name       = var.prod_alb_name
   create_prod_records = var.create_prod_records
   default_tags        = var.default_tags
+  alb_security_group_id = module.vpc.alb_security_group_id
+  public_subnet_ids     = module.vpc.public_subnet_ids
 }
   
-  # ── RDS MySQL Module — Amarachi (SPC-39) ─────────────────────────────────────
+  # ── RDS MySQL Module — ───────────────────────────────────
 module "rds" {
   source = "../../modules/rds"
 
   environment               = var.environment
   vpc_id                    = module.vpc.vpc_id
   private_subnet_ids        = module.vpc.private_subnet_ids
-  allowed_security_group_id = module.eks.node_security_group_id
+  allowed_security_group_id = module.vpc.eks_node_sg_id
   db_name                   = var.db_name
   db_username               = var.mysql_username
   db_password               = var.mysql_password
