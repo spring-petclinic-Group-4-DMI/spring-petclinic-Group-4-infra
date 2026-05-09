@@ -1,5 +1,5 @@
 variable "cluster_name" {
-  description = "EKS cluster name. Must match kubernetes.io/cluster tag on VPC subnets."
+  description = "The name of the EKS cluster"
   type        = string
   default     = "spc-stg-ue1-eks-main"
 }

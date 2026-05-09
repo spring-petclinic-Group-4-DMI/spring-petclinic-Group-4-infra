@@ -1,8 +1,5 @@
 # ──────────────────────────────────────────────────────────────
 # RDS MySQL Module
-# Project:  Spring PetClinic Microservices
-# Standard: spc-[env]-ue1-rds-[resource]
-# ──────────────────────────────────────────────────────────────
 
 # Security Group — controls who can reach RDS on port 3306
 resource "aws_security_group" "rds_sg" {

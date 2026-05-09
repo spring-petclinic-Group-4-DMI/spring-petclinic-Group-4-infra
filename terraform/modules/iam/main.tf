@@ -1,13 +1,3 @@
-# ──────────────────────────────────────────────────────────────
-# IAM Module - Main
-# Project:  Spring PetClinic Microservices
-# Standard: spc-[env]-ue1-iam-[resource]
-# ──────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────
-# OIDC Provider - Allows GitHub Actions to authenticate to AWS
-# without static access keys
-# ──────────────────────────────────────────────────────────────
 resource "aws_iam_openid_connect_provider" "github_oidc" {
   url = "https://token.actions.githubusercontent.com"
 
@@ -20,9 +10,6 @@ resource "aws_iam_openid_connect_provider" "github_oidc" {
   })
 }
 
-# ──────────────────────────────────────────────────────────────
-# CI Role - Used by GitHub Actions to build and push to ECR
-# ──────────────────────────────────────────────────────────────
 data "aws_iam_policy_document" "github_actions_ci_assume_role" {
   statement {
     effect  = "Allow"
@@ -101,9 +88,6 @@ resource "aws_iam_role_policy_attachment" "github_actions_ci" {
   policy_arn = aws_iam_policy.github_actions_ci_policy.arn
 }
 
-# ──────────────────────────────────────────────────────────────
-# Terraform Role - Used by GitHub Actions to run Terraform
-# ──────────────────────────────────────────────────────────────
 resource "aws_iam_role" "terraform" {
   name               = "spc-${var.environment}-ue1-iam-ro-terraform"
   assume_role_policy = data.aws_iam_policy_document.github_actions_ci_assume_role.json
@@ -179,9 +163,6 @@ resource "aws_iam_role_policy_attachment" "terraform" {
   policy_arn = aws_iam_policy.terraform_policy.arn
 }
 
-# ──────────────────────────────────────────────────────────────
-# EKS Node Role - Used by EKS worker nodes
-# ──────────────────────────────────────────────────────────────
 resource "aws_iam_role" "eks_node" {
   name = "spc-${var.environment}-ue1-iam-ro-eks-node"
 
@@ -218,9 +199,6 @@ resource "aws_iam_role_policy_attachment" "eks_ecr_policy" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
 }
 
-# ──────────────────────────────────────────────────────────────
-# EKS Cluster Role - Used by the EKS control plane
-# ──────────────────────────────────────────────────────────────
 resource "aws_iam_role" "eks_cluster" {
   name = "spc-${var.environment}-ue1-iam-ro-eks-cluster"
 
@@ -245,4 +223,38 @@ resource "aws_iam_role" "eks_cluster" {
 resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   role       = aws_iam_role.eks_cluster.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+}
+
+# This policy document allows the EKS OIDC provider to assume this role
+data "aws_iam_policy_document" "lb_controller_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    effect  = "Allow"
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(var.oidc_issuer_url, "https://", "")}:sub"
+      values   = ["system:serviceaccount:kube-system:aws-load-balancer-controller"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(var.oidc_issuer_url, "https://", "")}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    principals {
+      identifiers = [var.oidc_provider_arn]
+      type        = "Federated"
+    }
+  }
+}
+
+resource "aws_iam_role" "lb_controller" {
+  name               = "spc-${var.environment}-ue1-iam-ro-lb-controller"
+  assume_role_policy = data.aws_iam_policy_document.lb_controller_assume_role.json
+
+  tags = merge(var.common_tags, {
+    Name = "spc-${var.environment}-ue1-iam-ro-lb-controller"
+  })
 }

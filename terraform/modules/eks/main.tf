@@ -8,12 +8,6 @@ locals {
   }
 }
 
-# ================================================================
-# RESOURCE 1: EKS CLUSTER
-# AWS manages the Kubernetes control plane.
-# endpoint_public_access = true allows kubectl from your laptop.
-# authentication_mode = API enables the modern access entry system.
-# ================================================================
 resource "aws_eks_cluster" "main" {
   name     = var.cluster_name
   version  = var.kubernetes_version
@@ -40,12 +34,6 @@ resource "aws_eks_cluster" "main" {
   })
 }
 
-# ================================================================
-# RESOURCE 2: EKS MANAGED NODE GROUP
-# These are your EC2 worker nodes where pods actually run.
-# t3.medium = 2 vCPU + 4GB RAM — enough for all 9 services.
-# Placed in PRIVATE subnets for security.
-# ================================================================
 resource "aws_eks_node_group" "main" {
   cluster_name    = aws_eks_cluster.main.name
   node_group_name = "spc-stg-ue1-eks-ng-main"
@@ -80,11 +68,6 @@ resource "aws_eks_node_group" "main" {
   depends_on = [aws_eks_cluster.main]
 }
 
-# ================================================================
-# RESOURCE 3: OIDC PROVIDER
-# Required by Karpenter and External Secrets Operator.
-# Allows Kubernetes pods to assume IAM roles directly.
-# ================================================================
 data "tls_certificate" "eks" {
   url = aws_eks_cluster.main.identity[0].oidc[0].issuer
 }
@@ -99,12 +82,6 @@ resource "aws_iam_openid_connect_provider" "eks" {
   })
 }
 
-# ================================================================
-# RESOURCE 4: ACCESS ENTRIES
-# Tells EKS which IAM roles can access the cluster.
-# node_role   = allows worker nodes to join the cluster
-# terraform_role = allows our Terraform/kubectl to manage the cluster
-# ================================================================
 resource "aws_eks_access_entry" "node_role" {
   cluster_name  = aws_eks_cluster.main.name
   principal_arn = var.eks_node_role_arn
