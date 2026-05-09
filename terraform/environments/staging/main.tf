@@ -120,8 +120,8 @@ module "dns" {
   create_prod_records = var.create_prod_records
   default_tags        = var.default_tags
 }
-  
-  # ── RDS MySQL Module — Amarachi (SPC-39) ─────────────────────────────────────
+
+# ── RDS MySQL Module — Amarachi (SPC-39) ─────────────────────────────────────
 module "rds" {
   source = "../../modules/rds"
 
@@ -136,5 +136,5 @@ module "rds" {
   allocated_storage         = var.db_allocated_storage
   common_tags               = local.common_tags
 }
-  
+
 

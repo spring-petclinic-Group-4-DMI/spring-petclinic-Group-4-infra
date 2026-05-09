@@ -42,7 +42,7 @@ terraform {
 resource "aws_lb" "this" {
   # Naming standard: spc-stg-ue1-alb-external
   name               = "spc-stg-ue1-alb-external"
-  internal           = false            # false = internet-facing
+  internal           = false # false = internet-facing
   load_balancer_type = "application"
 
   # These come from the vpc module (Cloud/Infra Eng 1 — SPC-010-T1 / SPC-010-T2)
@@ -50,7 +50,7 @@ resource "aws_lb" "this" {
   security_groups = [var.alb_security_group_id]
   subnets         = var.public_subnet_ids
 
-  drop_invalid_header_fields = true     # security best practice
+  drop_invalid_header_fields = true # security best practice
 
   tags = merge(var.common_tags, {
     Name = "spc-stg-ue1-alb-external"
@@ -68,13 +68,13 @@ resource "aws_lb_target_group" "default" {
   name        = "spc-stg-ue1-alb-tg-default"
   port        = 8080
   protocol    = "HTTP"
-  target_type = "ip"                    # required for EKS pod-level routing
+  target_type = "ip" # required for EKS pod-level routing
 
   # vpc_id comes from the vpc module (Cloud/Infra Eng 1 — SPC-010-T1)
   vpc_id = var.vpc_id
 
   health_check {
-    path                = "/actuator/health"  # standard Spring Boot endpoint
+    path                = "/actuator/health" # standard Spring Boot endpoint
     healthy_threshold   = 2
     unhealthy_threshold = 3
     interval            = 15
@@ -104,7 +104,7 @@ resource "aws_lb_listener" "http" {
     redirect {
       port        = "443"
       protocol    = "HTTPS"
-      status_code = "HTTP_301"          # permanent redirect
+      status_code = "HTTP_301" # permanent redirect
     }
   }
 
@@ -186,7 +186,7 @@ resource "helm_release" "aws_lb_controller" {
   # The EKS cluster this controller will manage
   set {
     name  = "clusterName"
-    value = var.cluster_name             # from eks module
+    value = var.cluster_name # from eks module
   }
 
   # Use the ServiceAccount we created above (IRSA already wired via annotation)
@@ -208,7 +208,7 @@ resource "helm_release" "aws_lb_controller" {
   # vpc and region so the controller knows where it is
   set {
     name  = "vpcId"
-    value = var.vpc_id                   # from vpc module
+    value = var.vpc_id # from vpc module
   }
   set {
     name  = "region"
@@ -216,32 +216,32 @@ resource "helm_release" "aws_lb_controller" {
   }
 
   # Shield and WAF off for staging
-  set { 
-    name = "enableShield" 
-    value = "false" 
+  set {
+    name  = "enableShield"
+    value = "false"
   }
-  set { 
-    name = "enableWaf"    
-    value = "false" 
-    }
+  set {
+    name  = "enableWaf"
+    value = "false"
+  }
 
   # Resource limits (required by team security checklist — SPC-072)
-  set { 
-    name = "resources.requests.cpu"    
-    value = "100m"  
-    }
-  set { 
-    name = "resources.requests.memory" 
-    value = "128Mi" 
-    }
   set {
-     name = "resources.limits.cpu"      
-     value = "200m"  
-     }
+    name  = "resources.requests.cpu"
+    value = "100m"
+  }
   set {
-    name = "resources.limits.memory"   
-    value = "256Mi" 
-    }
+    name  = "resources.requests.memory"
+    value = "128Mi"
+  }
+  set {
+    name  = "resources.limits.cpu"
+    value = "200m"
+  }
+  set {
+    name  = "resources.limits.memory"
+    value = "256Mi"
+  }
 
   depends_on = [kubernetes_service_account.aws_lb_controller]
 }
@@ -259,13 +259,13 @@ resource "helm_release" "aws_lb_controller" {
 resource "kubernetes_ingress_v1" "api_gateway" {
   metadata {
     name      = "spc-stg-ue1-api-gateway-ingress"
-    namespace = var.app_namespace        # confirm with DevOps Eng 2
+    namespace = var.app_namespace # confirm with DevOps Eng 2
 
     annotations = {
       # Create an internet-facing ALB
-      "kubernetes.io/ingress.class"               = "alb"
-      "alb.ingress.kubernetes.io/scheme"          = "internet-facing"
-      "alb.ingress.kubernetes.io/target-type"     = "ip"
+      "kubernetes.io/ingress.class"           = "alb"
+      "alb.ingress.kubernetes.io/scheme"      = "internet-facing"
+      "alb.ingress.kubernetes.io/target-type" = "ip"
 
       # Subnets and security group — from vpc module
       "alb.ingress.kubernetes.io/subnets"         = join(",", var.public_subnet_ids)

@@ -12,10 +12,10 @@ variable "default_tags" {
   description = "Tags applied to every resource via the provider default_tags block."
   type        = map(string)
   default = {
-    Project     = "spring-petclinic"
-    Team        = "group-4"
-    ManagedBy   = "terraform"
-    Epic        = "SPC-005"
+    Project   = "spring-petclinic"
+    Team      = "group-4"
+    ManagedBy = "terraform"
+    Epic      = "SPC-005"
   }
 }
 
