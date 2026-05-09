@@ -23,9 +23,3 @@ output "eks_cluster_role_arn" {
   value       = aws_iam_role.eks_cluster.arn
 }
 
-output "lb_controller_role_arn" {
-  description = "The ARN of the IAM role for the AWS Load Balancer Controller"
-  # Replace 'aws_iam_role.lb_controller' with the actual resource name 
-  # defined inside your IAM module's main.tf
-  value       = aws_iam_role.lb_controller.arn
-}
