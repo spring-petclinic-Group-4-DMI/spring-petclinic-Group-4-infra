@@ -1,4 +1,4 @@
-# Secrets Rotation â€” SPC-57
+# Secrets Rotation — SPC-57
 
 ## What is rotated
 Secret: spc-staging-ue1-app-secret
@@ -17,7 +17,7 @@ Lambda function: AWS managed RDS MySQL rotation function
 5. External Secrets Operator (ESO) polls Secrets Manager every 1 hour
 6. ESO detects the new secret version and updates the Kubernetes secret
 7. Spring Boot HikariCP connection pool picks up new credentials
-8. Zero downtime â€” existing connections drain naturally
+8. Zero downtime — existing connections drain naturally
 
 ## How to enable rotation (done once)
 aws secretsmanager rotate-secret \
@@ -45,6 +45,6 @@ After manual rotation:
   All must show STATUS: Running READY: 1/1
 
 ## Status
-Rotation enabled on: PENDING â€” waiting for SPC-39 (RDS) to be provisioned
+Rotation enabled on: PENDING - waiting for SPC-39 (RDS) to be provisioned
 Manual rotation verified on: PENDING
 Zero downtime confirmed: PENDING
