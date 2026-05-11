@@ -224,8 +224,3 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
   role       = aws_iam_role.eks_cluster.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
 }
-
-# LB-controller IRSA role lives in module.alb because that module needs the
-# EKS OIDC provider — keeping it here would cause a circular dependency
-# (module.eks consumes module.iam roles, while the LB controller role needs
-# module.eks.oidc_provider_arn).
