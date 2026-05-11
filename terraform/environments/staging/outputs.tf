@@ -51,4 +51,18 @@ output "karpenter_interruption_queue_name" {
   description = "SQS queue name for spot interruption handling"
   value       = module.karpenter.karpenter_interruption_queue_name
 }
+output "github_actions_ci_role_arn" {
+  description = "ARN of the GitHub Actions CI role allowed to read the staging app secret."
+  value       = module.iam.github_actions_ci_role_arn
+}
+output "route53_name_servers" {
+  description = "Name servers to configure at the domain registrar."
+  value       = module.dns.name_servers
+}
+
+output "certificate_status" {
+  description = "ACM certificate status."
+  value       = module.dns.certificate_status
+}
+
 

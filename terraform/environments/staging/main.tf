@@ -29,6 +29,11 @@ terraform {
    }
 }
 
+provider "aws" {
+  region = var.aws_region
+}
+
+
 locals {
   common_tags = {
     Project     = "Spring PetClinic"
@@ -73,6 +78,8 @@ module "iam" {
   environment    = var.environment
   aws_account_id = var.aws_account_id
   github_org     = var.github_org
+  github_actions_secret_arns = [module.app_secrets.secret_arn]
+  github_actions_ecr_repository_arns  = values(module.ecr.repository_arns)
   common_tags    = local.common_tags
 }
 
@@ -134,6 +141,15 @@ module "karpenter" {
   common_tags       = local.common_tags
 }
 
+resource "kubernetes_namespace" "app" {
+  metadata {
+    name = var.app_namespace
+  }
+
+  depends_on = [module.eks]
+}
+
+
 module "alb" {
   source = "../../modules/alb"
 
@@ -151,6 +167,8 @@ module "alb" {
   api_gateway_service_name    = var.api_gateway_service_name
   api_gateway_service_port    = var.api_gateway_service_port
   lb_controller_chart_version = var.lb_controller_chart_version
+  depends_on = [kubernetes_namespace.app]
+
 }
 
 module "dns" {
