@@ -1,0 +1,47 @@
+name: Update Helm Image Tag
+
+on:
+  repository_dispatch:
+    types: [update-image-tag]
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  update-tag:
+    name: Update ${{ github.event.client_payload.service }} image tag
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+        with:
+          ref: staging
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Update image tag in values-staging.yaml
+        env:
+          SERVICE: ${{ github.event.client_payload.service }}
+          IMAGE_TAG: ${{ github.event.client_payload.tag }}
+        run: |
+          yq e ".image.tag = \"$IMAGE_TAG\"" -i "helm/$SERVICE/values-staging.yaml"
+
+      - name: Commit and push to staging
+        env:
+          SERVICE: ${{ github.event.client_payload.service }}
+          IMAGE_TAG: ${{ github.event.client_payload.tag }}
+        run: |
+          git config user.email "ci-bot@github.com"
+          git config user.name "CI Bot"
+          git add "helm/$SERVICE/values-staging.yaml"
+          git diff --cached --quiet || \
+            git commit -m "SPC-007: update $SERVICE image tag to $IMAGE_TAG"
+          git push origin staging
+```
