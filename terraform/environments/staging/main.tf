@@ -20,13 +20,13 @@ terraform {
     }
   }
 
-  # backend "s3" {
-  #   bucket       = "spc-staging-ue1-tfstate"
-  #   key          = "dns/terraform.tfstate"
-  #   region       = "us-east-1"
-  #   use_lockfile = true
-  #   encrypt      = true
-  # }
+   backend "s3" {
+     bucket       = "spc-staging-ue1-tfstate"
+     key          = "dns/terraform.tfstate"
+     region       = "us-east-1"
+     use_lockfile = true
+     encrypt      = true
+   }
 }
 
 locals {
