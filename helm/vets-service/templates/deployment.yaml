@@ -27,3 +27,14 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ include "vets-service.fullname" . }}-config
+          env:
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: rds-credentials
+                  key: username
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rds-credentials
+                  key: password
