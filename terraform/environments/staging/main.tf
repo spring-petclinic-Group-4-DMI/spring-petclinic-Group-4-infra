@@ -49,11 +49,6 @@ locals {
   )
 }
 
-# ── Kubernetes / Helm providers ───────────────────────────────────────────────
-# Auth is sourced from the EKS cluster created by module.eks. The kubernetes/helm
-# resources inside module.alb (LB-controller install + Ingress) need this.
-# Token comes from a fresh AWS-IAM-Authenticator call so it doesn't expire mid-apply.
-
 data "aws_eks_cluster_auth" "main" {
   name = module.eks.cluster_name
 }
@@ -127,6 +122,18 @@ module "eks" {
   # ... add other variables defined in your eks/variables.tf
 }
 
+module "karpenter" {
+  source = "../../modules/karpenter"
+
+  cluster_name      = module.eks.cluster_name
+  cluster_endpoint  = module.eks.cluster_endpoint
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_issuer_url   = module.eks.oidc_issuer_url
+  environment       = var.environment_code
+  aws_account_id    = var.aws_account_id
+  common_tags       = local.common_tags
+}
+
 module "alb" {
   source = "../../modules/alb"
 
@@ -153,10 +160,6 @@ module "dns" {
   default_tags = var.default_tags
 }
 
-# ── ALB alias records — depend on both module.dns (zone_id) and module.alb (ALB outputs).
-# Kept here in the root rather than in module.dns to avoid a cycle:
-# module.alb consumes module.dns.certificate_arn, so module.dns can't also depend on module.alb.
-
 resource "aws_route53_record" "staging_a" {
   zone_id = module.dns.hosted_zone_id
   name    = "staging.${var.domain_name}"
@@ -181,7 +184,6 @@ resource "aws_route53_record" "staging_aaaa" {
   }
 }
 
-# ── RDS MySQL Module — ───────────────────────────────────
 module "rds" {
   source = "../../modules/rds"
 
