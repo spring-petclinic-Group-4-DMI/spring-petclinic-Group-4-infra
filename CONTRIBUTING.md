@@ -8,7 +8,7 @@
 | Bug fix | fix/SPC-XX-description | fix/SPC-19-rds-sg-rule |
 | Docs | docs/SPC-XX-description | docs/SPC-25-runbook |
 
-## Commit Message Formatt
+## Commit Message Format
 SPC-XX: Short description in present tense
 
 ## Pull Request Rules
