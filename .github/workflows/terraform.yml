@@ -8,7 +8,7 @@ on:
       - "terraform/**"
       - ".github/workflows/terraform.yml"
   push:
-    branches: [staging]
+    branches: [staging, testing-ada2]
     paths:
       - "terraform/**"
 
@@ -84,5 +84,5 @@ jobs:
         run: terraform plan -out=tfplan
 
       - name: Terraform apply
-        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' && (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/testing-ada')
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' && (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/testing-ada' || github.ref == 'refs/heads/testing-ada2')
         run: terraform apply -auto-approve tfplan
