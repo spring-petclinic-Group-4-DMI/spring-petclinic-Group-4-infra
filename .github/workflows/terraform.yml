@@ -14,6 +14,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  pull_requests: write
 
 env:
   TF_VAR_environment: staging
@@ -26,6 +27,7 @@ env:
   TF_VAR_app_namespace: petclinic-staging
   TF_VAR_api_gateway_service_name: api-gateway-api-gateway
   APP_SECRET_NAME: spc-stg-ue1-app-secret-01
+
 
 jobs:
   terraform:
@@ -44,6 +46,7 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: GitHubActions
           aws-region: us-east-1
 
       - name: Fetch secrets from AWS Secrets Manager
