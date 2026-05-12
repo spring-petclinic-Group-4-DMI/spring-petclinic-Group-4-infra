@@ -2,15 +2,11 @@ name: Terraform
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [staging]
-    paths:
-      - "terraform/**"
-      - ".github/workflows/terraform.yml"
   push:
     branches: [staging]
     paths:
       - "terraform/**"
+      - ".github/workflows/terraform.yml"
 
 permissions:
   contents: read
