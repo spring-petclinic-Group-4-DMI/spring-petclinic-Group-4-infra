@@ -48,40 +48,56 @@ resource "aws_iam_role" "github_actions_ci" {
 
 resource "aws_iam_policy" "github_actions_ci_policy" {
   name        = "spc-${var.environment}-ue1-iam-policy-github-ci"
-  description = "Least-privilege policy for GitHub Actions CI to build and push to ECR"
+  description = "Least-privilege policy for GitHub Actions CI to build and push to ECR and read approved Secrets Manager secrets"
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Sid      = "ECRAuthentication"
-        Effect   = "Allow"
-        Action   = ["ecr:GetAuthorizationToken"]
-        Resource = ["*"]
-      },
-      {
-        Sid    = "ECRPushPull"
-        Effect = "Allow"
-        Action = [
-          "ecr:BatchGetImage",
-          "ecr:BatchCheckLayerAvailability",
-          "ecr:CompleteLayerUpload",
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:InitiateLayerUpload",
-          "ecr:PutImage",
-          "ecr:UploadLayerPart",
-          "ecr:DescribeRepositories",
-          "ecr:ListImages"
-        ]
-        Resource = ["arn:aws:ecr:us-east-1:${var.aws_account_id}:repository/spc-*"]
-      }
-    ]
+
+    Statement = concat(
+      [
+        {
+          Sid      = "ECRAuthentication"
+          Effect   = "Allow"
+          Action   = ["ecr:GetAuthorizationToken"]
+          Resource = ["*"]
+        },
+        {
+          Sid    = "ECRPushPull"
+          Effect = "Allow"
+          Action = [
+            "ecr:BatchGetImage",
+            "ecr:BatchCheckLayerAvailability",
+            "ecr:CompleteLayerUpload",
+            "ecr:GetDownloadUrlForLayer",
+            "ecr:InitiateLayerUpload",
+            "ecr:PutImage",
+            "ecr:UploadLayerPart",
+            "ecr:DescribeRepositories",
+            "ecr:ListImages"
+          ]
+          Resource = Resource = var.github_actions_ecr_repository_arns
+
+        }
+      ],
+      length(var.github_actions_secret_arns) > 0 ? [
+        {
+          Sid    = "SecretsManagerRead"
+          Effect = "Allow"
+          Action = [
+            "secretsmanager:DescribeSecret",
+            "secretsmanager:GetSecretValue"
+          ]
+          Resource = var.github_actions_secret_arns
+        }
+      ] : []
+    )
   })
 
   tags = merge(var.common_tags, {
     Name = "spc-${var.environment}-ue1-iam-policy-github-ci"
   })
 }
+
 
 resource "aws_iam_role_policy_attachment" "github_actions_ci" {
   role       = aws_iam_role.github_actions_ci.name

@@ -1,22 +1,4 @@
 ###############################################################################
-# modules/alb/main.tf
-# Ticket : SPC-005-T8
-# Owner  : (your name)
-#
-# This module provisions:
-#   1. An Application Load Balancer (ALB) in the public subnets
-#   2. HTTP listener  (port 80)  — redirects to HTTPS
-#   3. HTTPS listener (port 443) — SSL termination using ACM certificate
-#   4. AWS Load Balancer Controller installed into EKS via Helm
-#   5. Kubernetes Ingress that routes external traffic to the api-gateway service
-#
-# All values this module needs are passed in as variables.
-# This module does NOT create VPC, subnets, EKS, or IAM roles —
-# those are other people's modules. This module only receives their
-# outputs as input variables.
-###############################################################################
-
-###############################################################################
 # 1. APPLICATION LOAD BALANCER
 ###############################################################################
 
@@ -353,11 +335,12 @@ resource "kubernetes_ingress_v1" "api_gateway" {
 
   spec {
     rule {
-      host = "petclinic.${var.domain_name}"
+      host = "staging.${var.domain_name}"
+
 
       http {
         path {
-          path      = "/*"
+          path      = "/"
           path_type = "Prefix"
 
           backend {

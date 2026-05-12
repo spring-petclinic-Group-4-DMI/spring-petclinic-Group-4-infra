@@ -1,0 +1,77 @@
+name: Terraform
+
+on:
+  pull_request:
+    branches: [staging]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yml"
+  push:
+    branches: [staging]
+    paths:
+      - "terraform/**"
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_VAR_environment: staging
+  TF_VAR_environment_code: stg
+  TF_VAR_region_code: ue1
+  TF_VAR_repository_prefix: ""
+  TF_VAR_aws_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+  TF_VAR_domain_name: ${{ secrets.DOMAIN_NAME }}
+  TF_VAR_create_secret_version: "false"
+  TF_VAR_app_namespace: petclinic-staging
+  TF_VAR_api_gateway_service_name: api-gateway-api-gateway
+  APP_SECRET_NAME: spc-stg-ue1-app-secret-01
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform/environments/staging
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Fetch secrets from AWS Secrets Manager
+        run: |
+          SECRET_JSON=$(aws secretsmanager get-secret-value \
+            --secret-id "$APP_SECRET_NAME" \
+            --query SecretString \
+            --output text)
+
+          MYSQL_USERNAME=$(echo "$SECRET_JSON" | jq -r '.MYSQL_USERNAME')
+          MYSQL_PASSWORD=$(echo "$SECRET_JSON" | jq -r '.MYSQL_PASSWORD')
+          OPENAI_API_KEY=$(echo "$SECRET_JSON" | jq -r '.OPENAI_API_KEY')
+
+          echo "::add-mask::$MYSQL_USERNAME"
+          echo "::add-mask::$MYSQL_PASSWORD"
+          echo "::add-mask::$OPENAI_API_KEY"
+
+          {
+            echo "TF_VAR_mysql_username=$MYSQL_USERNAME"
+            echo "TF_VAR_mysql_password=$MYSQL_PASSWORD"
+            echo "TF_VAR_openai_api_key=$OPENAI_API_KEY"
+          } >> "$GITHUB_ENV"
+
+      - run: terraform fmt -check -recursive ../..
+      - run: terraform init
+      - run: terraform validate
+      - run: terraform plan -out=tfplan
+
+      - name: Apply on staging
+        if: github.event_name == 'push' && github.ref == 'refs/heads/staging'
+        run: terraform apply -auto-approve tfplan
