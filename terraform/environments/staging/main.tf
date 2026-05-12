@@ -26,7 +26,7 @@ terraform {
      #region       = "us-east-1"
      #dynamodb_table = "spc-staging-ue1-tfstate-lock"
      #encrypt      = true
-   }
+   #}
 }
 
 provider "aws" {

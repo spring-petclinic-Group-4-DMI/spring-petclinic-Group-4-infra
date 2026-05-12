@@ -75,7 +75,7 @@ resource "aws_iam_policy" "github_actions_ci_policy" {
             "ecr:DescribeRepositories",
             "ecr:ListImages"
           ]
-          Resource = Resource = var.github_actions_ecr_repository_arns
+          Resource = var.github_actions_ecr_repository_arns
 
         }
       ],
