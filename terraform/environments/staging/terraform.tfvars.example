@@ -4,8 +4,9 @@
 # NEVER commit terraform.tfvars — only this example file
 # ──────────────────────────────────────────────────────────────
 
-environment    = "stg"
-aws_region     = "us-east-1"
+environment    = "staging"
+environment_code  = "stg"
+aws_region     = "region"
 aws_account_id = "YOUR_AWS_ACCOUNT_ID"
 
 github_org        = "spring-petclinic-Group-4-DMI"
