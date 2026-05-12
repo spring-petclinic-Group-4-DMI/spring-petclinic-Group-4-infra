@@ -9,10 +9,10 @@ variable "environment" {
   type        = string
   default     = "dev"
 
-validation {
-  condition     = contains(["dev", "stg", "staging", "prod"], var.environment)
-  error_message = "environment must be one of: dev, stg, staging, prod."
-}
+  validation {
+    condition     = contains(["dev", "stg", "staging", "prod"], var.environment)
+    error_message = "environment must be one of: dev, stg, staging, prod."
+  }
 }
 
 variable "repository_prefix" {

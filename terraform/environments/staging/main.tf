@@ -20,13 +20,13 @@ terraform {
     }
   }
 
-   #backend "s3" {
-     #bucket       = "spc-staging-ue1-tfstate"
-     #key          = "staging/terraform.tfstate"
-     #region       = "us-east-1"
-     #dynamodb_table = "spc-staging-ue1-tfstate-lock"
-     #encrypt      = true
-   #}
+  #backend "s3" {
+  #bucket       = "spc-staging-ue1-tfstate"
+  #key          = "staging/terraform.tfstate"
+  #region       = "us-east-1"
+  #dynamodb_table = "spc-staging-ue1-tfstate-lock"
+  #encrypt      = true
+  #}
 }
 
 provider "aws" {
@@ -75,12 +75,12 @@ provider "helm" {
 module "iam" {
   source = "../../modules/iam"
 
-  environment    = var.environment
-  aws_account_id = var.aws_account_id
-  github_org     = var.github_org
-  github_actions_secret_arns = [module.app_secrets.secret_arn]
-  github_actions_ecr_repository_arns  = values(module.ecr.repository_arns)
-  common_tags    = local.common_tags
+  environment                        = var.environment
+  aws_account_id                     = var.aws_account_id
+  github_org                         = var.github_org
+  github_actions_secret_arns         = [module.app_secrets.secret_arn]
+  github_actions_ecr_repository_arns = values(module.ecr.repository_arns)
+  common_tags                        = local.common_tags
 }
 
 module "ecr" {
@@ -167,7 +167,7 @@ module "alb" {
   api_gateway_service_name    = var.api_gateway_service_name
   api_gateway_service_port    = var.api_gateway_service_port
   lb_controller_chart_version = var.lb_controller_chart_version
-  depends_on = [kubernetes_namespace.app]
+  depends_on                  = [kubernetes_namespace.app]
 
 }
 

@@ -62,9 +62,9 @@ resource "aws_iam_policy" "karpenter_controller" {
         Resource = "*"
       },
       {
-        Sid    = "AllowPassNodeRole"
-        Effect = "Allow"
-        Action = ["iam:PassRole"]
+        Sid      = "AllowPassNodeRole"
+        Effect   = "Allow"
+        Action   = ["iam:PassRole"]
         Resource = "arn:aws:iam::${var.aws_account_id}:role/spc-${var.environment}-ue1-karpenter-node-role"
       },
       {
@@ -76,9 +76,9 @@ resource "aws_iam_policy" "karpenter_controller" {
         Resource = "*"
       },
       {
-        Sid    = "AllowSSMAccess"
-        Effect = "Allow"
-        Action = ["ssm:GetParameter"]
+        Sid      = "AllowSSMAccess"
+        Effect   = "Allow"
+        Action   = ["ssm:GetParameter"]
         Resource = "arn:aws:ssm:*:*:parameter/aws/service/*"
       },
       {
