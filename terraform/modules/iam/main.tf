@@ -48,7 +48,7 @@ resource "aws_iam_role" "github_actions_ci" {
 
 resource "aws_iam_policy" "github_actions_ci_policy" {
   name        = "spc-${var.environment}-ue1-iam-policy-github-ci"
-  description = "Least-privilege policy for GitHub Actions CI to build and push to ECR and read approved Secrets Manager secrets"
+  description = "Policy for GitHub Actions CI to build, push to ECR, read secrets, and provision infrastructure"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -73,10 +73,35 @@ resource "aws_iam_policy" "github_actions_ci_policy" {
             "ecr:PutImage",
             "ecr:UploadLayerPart",
             "ecr:DescribeRepositories",
-            "ecr:ListImages"
+            "ecr:ListImages",
+            "ecr:CreateRepository"
           ]
           Resource = var.github_actions_ecr_repository_arns
 
+        },
+        {
+          Sid    = "InfrastructureProvisioning"
+          Effect = "Allow"
+          Action = [
+            "ec2:*",
+            "eks:*",
+            "rds:*",
+            "elasticloadbalancing:*",
+            "iam:*",
+            "s3:*",
+            "ecr:*",
+            "secretsmanager:*",
+            "dynamodb:*",
+            "route53:*",
+            "acm:*",
+            "autoscaling:*",
+            "cloudwatch:*",
+            "logs:*",
+            "kms:*",
+            "events:*",
+            "sqs:*"
+          ]
+          Resource = ["*"]
         }
       ],
       length(var.github_actions_secret_arns) > 0 ? [
