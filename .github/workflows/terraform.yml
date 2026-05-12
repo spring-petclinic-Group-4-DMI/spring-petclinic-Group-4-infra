@@ -8,7 +8,7 @@ on:
       - "terraform/**"
       - ".github/workflows/terraform.yml"
   push:
-    branches: [staging, testing-ada2]
+    branches: [staging]
     paths:
       - "terraform/**"
 
