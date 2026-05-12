@@ -1,7 +1,7 @@
 # ──────────────────────────────────────────────────────────────
 # Staging Environment — Example Variables
 # Copy this file to terraform.tfvars and fill in real values
-# NEVER commit terraform.tfvars — only this example file.
+# NEVER commit terraform.tfvars — only this example file....
 # ──────────────────────────────────────────────────────────────
 
 environment    = "staging"
