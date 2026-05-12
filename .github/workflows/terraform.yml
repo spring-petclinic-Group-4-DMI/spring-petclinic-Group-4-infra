@@ -85,4 +85,4 @@ jobs:
 
       - name: Terraform destroy
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' && github.ref == 'refs/heads/staging'
-        run: terraform destroy -auto-approve tfplan
+        run: terraform destroy -auto-approve 
