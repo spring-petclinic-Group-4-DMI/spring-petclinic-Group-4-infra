@@ -44,4 +44,3 @@ jobs:
           git diff --cached --quiet || \
             git commit -m "SPC-007: update $SERVICE image tag to $IMAGE_TAG"
           git push origin staging
-```
