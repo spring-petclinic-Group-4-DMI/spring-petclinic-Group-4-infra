@@ -16,19 +16,17 @@ resource "aws_route53_zone" "main" {
   name    = var.domain_name
   comment = "Managed by Terraform — Spring PetClinic Group 4 (SPC-005-T9)"
   tags    = var.default_tags
+
+  lifecycle {
+    prevent_destroy = true  # forces explicit removal before destroy can proceed
+  }
 }
 
 resource "aws_acm_certificate" "main" {
-  domain_name               = var.domain_name
+  domain_name               = "staging.${var.domain_name}"
   subject_alternative_names = ["*.${var.domain_name}"]
   validation_method         = "DNS"
   tags                      = var.default_tags
-
-  lifecycle {
-    # New cert is fully issued before the old one is destroyed, preventing
-    # HTTPS downtime during certificate rotation or renewal.
-    create_before_destroy = true
-  }
 }
 
 resource "aws_route53_record" "cert_validation" {
@@ -40,18 +38,20 @@ resource "aws_route53_record" "cert_validation" {
     }
   }
 
-  allow_overwrite = true
+  zone_id         = aws_route53_zone.main.zone_id
   name            = each.value.name
+  type            = each.value.type
   records         = [each.value.record]
   ttl             = 60
-  type            = each.value.type
-  zone_id         = aws_route53_zone.main.zone_id
+  allow_overwrite = true
 }
 
-resource "aws_acm_certificate_validation" "main" {
-  certificate_arn = aws_acm_certificate.main.arn
+# aws_acm_certificate_validation intentionally omitted.
+# Terraform would block the entire apply waiting for DNS propagation from
+# the external registrar (spaceship.com), which can take up to 48 hours.
+# Instead, the CNAME records above are written to Route53 and validation
+# completes automatically in the background once NS propagation finishes.
+# The certificate_arn output uses aws_acm_certificate.main.arn directly
+# (available immediately) so the ALB and Ingress can be provisioned without
+# waiting. HTTPS will start working as soon as ACM status changes to ISSUED.
 
-  validation_record_fqdns = [
-    for record in aws_route53_record.cert_validation : record.fqdn
-  ]
-}
