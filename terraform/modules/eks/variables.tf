@@ -69,3 +69,8 @@ variable "kubernetes_version" {
   type        = string
   default     = "1.31"
 }
+
+variable "terraform_role_arn" {
+  description = "IAM role ARN for Terraform to manage EKS cluster access. Passed from module.iam.terraform_role_arn."
+  type        = string
+}
