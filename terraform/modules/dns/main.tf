@@ -18,7 +18,7 @@ resource "aws_route53_zone" "main" {
   tags    = var.default_tags
 
   lifecycle {
-    prevent_destroy = true  # forces explicit removal before destroy can proceed
+    prevent_destroy = true # forces explicit removal before destroy can proceed
   }
 }
 
