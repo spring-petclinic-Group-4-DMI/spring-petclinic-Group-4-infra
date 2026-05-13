@@ -1,6 +1,6 @@
 replicaCount: 1
 image:
-  repository: 338593158888.dkr.ecr.us-east-1.amazonaws.com/genai-service
+  repository: NEW_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/genai-service
   pullPolicy: IfNotPresent
   tag: "latest"
 service:
