@@ -92,7 +92,7 @@ resource "aws_eks_access_entry" "node_role" {
 
 resource "aws_eks_access_entry" "terraform_role" {
   cluster_name  = aws_eks_cluster.main.name
-  principal_arn = "arn:aws:iam::338593158888:role/spc-staging-ue1-iam-ro-terraform"
+  principal_arn = var.terraform_role_arn
   type          = "STANDARD"
 
   depends_on = [aws_eks_cluster.main]
@@ -100,7 +100,7 @@ resource "aws_eks_access_entry" "terraform_role" {
 
 resource "aws_eks_access_policy_association" "terraform_admin" {
   cluster_name  = aws_eks_cluster.main.name
-  principal_arn = "arn:aws:iam::338593158888:role/spc-staging-ue1-iam-ro-terraform"
+  principal_arn = var.terraform_role_arn
   policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
 
   access_scope {

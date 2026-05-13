@@ -38,9 +38,9 @@ variable "resource_count" {
 }
 
 variable "recovery_window_in_days" {
-  description = "Recovery window before a deleted secret is permanently removed."
+  description = "Recovery window before a deleted secret is permanently removed. Set to 0 for immediate deletion on destroy."
   type        = number
-  default     = 7
+  default     = 0
 }
 
 variable "kms_key_id" {
