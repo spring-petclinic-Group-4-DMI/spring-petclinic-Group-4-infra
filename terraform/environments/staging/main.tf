@@ -126,7 +126,9 @@ module "eks" {
   eks_node_sg_id        = module.vpc.eks_node_sg_id
   eks_cluster_role_arn  = module.iam.eks_cluster_role_arn
   eks_node_role_arn     = module.iam.eks_node_role_arn
-  # ... add other variables defined in your eks/variables.tf
+  terraform_role_arn    = module.iam.terraform_role_arn
+
+  depends_on = [module.iam]
 }
 
 module "karpenter" {
