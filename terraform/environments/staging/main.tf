@@ -21,11 +21,11 @@ terraform {
   }
 
   backend "s3" {
-  bucket       = "spc-staging-ue1-tfstate"
-  key          = "staging/terraform.tfstate"
-  region       = "us-east-1"
-  dynamodb_table = "spc-staging-ue1-tfstate-lock"
-  encrypt      = true
+    bucket         = "spc-staging-ue1-tfstate"
+    key            = "staging/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "spc-staging-ue1-tfstate-lock"
+    encrypt        = true
   }
 }
 
