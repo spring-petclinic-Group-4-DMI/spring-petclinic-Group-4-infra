@@ -54,4 +54,3 @@ resource "aws_route53_record" "cert_validation" {
 # The certificate_arn output uses aws_acm_certificate.main.arn directly
 # (available immediately) so the ALB and Ingress can be provisioned without
 # waiting. HTTPS will start working as soon as ACM status changes to ISSUED.
-
