@@ -79,10 +79,10 @@ jobs:
       - name: Terraform plan
         run: terraform plan -out=tfplan
 
-      #- name: Terraform apply
-      #  if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' && github.ref == 'refs/heads/staging'
-      #  run: terraform apply -auto-approve tfplan
-
-      - name: Terraform destroy
+      - name: Terraform apply
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' && github.ref == 'refs/heads/staging'
-        run: terraform destroy -auto-approve 
+        run: terraform apply -auto-approve tfplan
+
+     # - name: Terraform destroy
+     #   if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' && github.ref == 'refs/heads/staging'
+     #   run: terraform destroy -auto-approve
