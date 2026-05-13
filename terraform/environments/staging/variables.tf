@@ -11,6 +11,11 @@ variable "environment" {
 variable "aws_account_id" {
   description = "AWS Account ID for IAM role ARN construction"
   type        = string
+
+  validation {
+    condition     = can(regex("^[0-9]{12}$", var.aws_account_id))
+    error_message = "aws_account_id must be exactly 12 digits. Check the AWS_ACCOUNT_ID GitHub secret."
+  }
 }
 
 variable "github_org" {
@@ -101,6 +106,11 @@ variable "mysql_password" {
   description = "RDS MySQL password for staging"
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = can(regex("^[!-~]+$", var.mysql_password)) && !can(regex("[/@\" ]", var.mysql_password))
+    error_message = "mysql_password must contain only printable ASCII characters and cannot contain '/', '@', double quotes, or spaces."
+  }
 }
 
 variable "openai_api_key" {
