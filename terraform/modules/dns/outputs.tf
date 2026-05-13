@@ -9,8 +9,8 @@ output "name_servers" {
 }
 
 output "certificate_arn" {
-  description = "ARN of the validated ACM wildcard certificate (*.petclinic-group4.com + apex). Pass into module.alb's acm_certificate_arn input."
-  value       = aws_acm_certificate_validation.main.certificate_arn
+  description = "ARN of the ACM wildcard certificate (*.petclinic-group4.com + apex). Available immediately after certificate creation; validation happens asynchronously via DNS. Pass into module.alb's acm_certificate_arn input."
+  value       = aws_acm_certificate.main.arn
 }
 
 output "certificate_status" {
