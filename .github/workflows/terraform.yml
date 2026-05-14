@@ -76,13 +76,9 @@ jobs:
       - name: Terraform validate
         run: terraform validate
 
-      - name: Terraform plan
-        run: terraform plan -out=tfplan
-
-      - name: Terraform apply (phase 1 — AWS infra only)
-        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/staging'
+      - name: Terraform plan (phase 1 — AWS infra only)
         run: |
-          terraform apply -auto-approve \
+          terraform plan -out=tfplan1 \
             -target=module.iam \
             -target=module.vpc \
             -target=module.ecr \
@@ -90,14 +86,18 @@ jobs:
             -target=module.eks \
             -target=module.rds \
             -target=module.dns \
-            -target=module.karpenter \
-            tfplan
+            -target=module.karpenter
+
+      - name: Terraform apply (phase 1 — AWS infra only)
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/staging'
+        run: terraform apply -auto-approve tfplan1
+
+      - name: Terraform plan (phase 2 — Kubernetes resources + ALB)
+        run: terraform plan -out=tfplan2
 
       - name: Terraform apply (phase 2 — Kubernetes resources + ALB)
         if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/staging'
-        run: |
-          terraform plan -out=tfplan2
-          terraform apply -auto-approve tfplan2
+        run: terraform apply -auto-approve tfplan2
 
      # - name: Terraform destroy
      #   if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' && github.ref == 'refs/heads/staging'
