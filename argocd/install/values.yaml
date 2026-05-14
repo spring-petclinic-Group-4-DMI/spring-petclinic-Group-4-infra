@@ -1,0 +1,19 @@
+# ── Server ────────────────────────────────────────────────────
+server:
+  service:
+    type: LoadBalancer      # creates an AWS NLB so the UI is publicly accessible
+  extraArgs:
+    - --insecure
+
+# ── Configs ───────────────────────────────────────────────────
+configs:
+  params:
+    server.insecure: "true"  # must match --insecure flag above
+
+  cm:
+    url: "https://pawscare.online.com"
+
+  repositories: |
+    - url: https://github.com/spring-petclinic-Group-4-DMI/spring-petclinic-Group-4-infra.git
+      name: infra-repo
+      type: git
