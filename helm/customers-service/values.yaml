@@ -1,6 +1,6 @@
 replicaCount: 1
 image:
-  repository: NEW_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/customers-service
+  repository: 428101261622.dkr.ecr.us-east-1.amazonaws.com/spring-petclinic/customers-service
   pullPolicy: IfNotPresent
   tag: "latest"
 service:
@@ -20,7 +20,7 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
 configMap:
   SPRING_PROFILES_ACTIVE: kubernetes,mysql
-  SPRING_DATASOURCE_URL: jdbc:mysql://REPLACE-WITH-RDS-ENDPOINT:3306/petclinic?useSSL=false&allowPublicKeyRetrieval=true
+  SPRING_DATASOURCE_URL: jdbc:mysql://spc-staging-ue1-rds-db.co16s6q6g4t2.us-east-1.rds.amazonaws.com:3306/petclinic?useSSL=false&allowPublicKeyRetrieval=true
   SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
   EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
   SPRING_CONFIG_IMPORT: configserver:http://config-server:8888
