@@ -1,6 +1,6 @@
 replicaCount: 1
 image:
-  repository: NEW_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/admin-server
+  repository: 428101261622.dkr.ecr.us-east-1.amazonaws.com/spring-petclinic/admin-server
   pullPolicy: IfNotPresent
   tag: "latest"
 service:
