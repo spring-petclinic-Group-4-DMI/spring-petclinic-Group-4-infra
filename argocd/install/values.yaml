@@ -13,7 +13,7 @@ configs:
   cm:
     url: "https://pawscare.online.com"
 
-  repositories: |
+  repositories:
     - url: https://github.com/spring-petclinic-Group-4-DMI/spring-petclinic-Group-4-infra.git
       name: infra-repo
       type: git
