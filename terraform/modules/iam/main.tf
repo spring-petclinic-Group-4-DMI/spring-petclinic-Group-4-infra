@@ -1,14 +1,14 @@
-resource "aws_iam_openid_connect_provider" "github_oidc" {
-  url = "https://token.actions.githubusercontent.com"
-
-  client_id_list = ["sts.amazonaws.com"]
-
-  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
-
-  tags = merge(var.common_tags, {
-    Name = "spc-${var.environment}-ue1-iam-github-oidc"
-  })
-}
+# resource "aws_iam_openid_connect_provider" "github_oidc" {
+#   url = "https://token.actions.githubusercontent.com"
+#
+#   client_id_list = ["sts.amazonaws.com"]
+#
+#   thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+#
+#   tags = merge(var.common_tags, {
+#     Name = "spc-${var.environment}-ue1-iam-github-oidc"
+#   })
+# }
 
 data "aws_iam_policy_document" "github_actions_ci_assume_role" {
   statement {
