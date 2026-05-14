@@ -1,3 +1,35 @@
+# Reference the existing GitHub OIDC provider (created manually, not by Terraform)
+data "aws_iam_openid_connect_provider" "github_oidc" {
+  arn = "arn:aws:iam::${var.aws_account_id}:oidc-provider/token.actions.githubusercontent.com"
+}
+
+# Trust policy for GitHub Actions OIDC authentication
+data "aws_iam_policy_document" "github_actions_ci_assume_role" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [data.aws_iam_openid_connect_provider.github_oidc.arn]
+    }
+
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:sub"
+      values = [
+        "repo:${var.github_org}/${var.github_app_repo}:*",
+        "repo:${var.github_org}/${var.github_infra_repo}:*"
+      ]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
 
 resource "aws_iam_role" "github_actions_ci" {
   name               = "spc-${var.environment}-ue1-iam-ro-github-ci"
