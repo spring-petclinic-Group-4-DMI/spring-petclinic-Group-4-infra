@@ -1,7 +1,12 @@
 name: Install ArgoCD
 
 on:
-  workflow_dispatch:   # manual trigger only — you run this once
+  workflow_dispatch:
+  push:
+    branches: [staging]
+    paths:
+      - "argocd-install/**"
+      - ".github/workflows/argocd-install.yml"  # manual trigger only — you run this once
 
 permissions:
   id-token: write
