@@ -3,7 +3,7 @@ data "aws_iam_openid_connect_provider" "github_oidc" {
   arn = "arn:aws:iam::${var.aws_account_id}:oidc-provider/token.actions.githubusercontent.com"
 }
 
-# Trust policy for GitHub Actions OIDC authentication
+# Trust policy for GitHub Actions OIDC authentication.
 data "aws_iam_policy_document" "github_actions_ci_assume_role" {
   statement {
     effect  = "Allow"
