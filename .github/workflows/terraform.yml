@@ -93,7 +93,9 @@ jobs:
         run: terraform apply -auto-approve tfplan1
 
       - name: Terraform plan (phase 2 — Kubernetes resources + ALB)
-        run: terraform plan -out=tfplan2
+        run: |
+          terraform plan -out=tfplan2 \
+            -target=kubernetes_namespace.app
 
       - name: Terraform apply (phase 2 — Kubernetes resources + ALB)
         if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/staging'
