@@ -1,9 +1,3 @@
-# ──────────────────────────────────────────────────────────────
-# IAM Module Variables
-# Project:  Spring PetClinic Microservices
-# Standard: spc-[env]-ue1-iam-[resource]
-# ──────────────────────────────────────────────────────────────
-
 variable "environment" {
   description = "Deployment environment (staging or prod)"
   type        = string
@@ -32,8 +26,19 @@ variable "github_infra_repo" {
   default     = "spring-petclinic-Group-4-infra"
 }
 
+variable "github_actions_secret_arns" {
+  description = "Secrets Manager secret ARNs the GitHub Actions CI role can read."
+  type        = list(string)
+  default     = []
+}
+
 variable "common_tags" {
   description = "Common tags applied to all IAM resources"
   type        = map(string)
   default     = {}
+}
+variable "github_actions_ecr_repository_arns" {
+  description = "ECR repository ARNs GitHub Actions can push/pull."
+  type        = list(string)
+  default     = []
 }

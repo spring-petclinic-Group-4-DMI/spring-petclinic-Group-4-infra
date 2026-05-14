@@ -1,0 +1,26 @@
+replicaCount: 1
+image:
+  repository: NEW_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/visits-service
+  pullPolicy: IfNotPresent
+  tag: "latest"
+service:
+  type: ClusterIP
+  port: 8082
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 70
+configMap:
+  SPRING_PROFILES_ACTIVE: kubernetes,mysql
+  SPRING_DATASOURCE_URL: jdbc:mysql://REPLACE-WITH-RDS-ENDPOINT:3306/petclinic?useSSL=false&allowPublicKeyRetrieval=true
+  SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-server:8761/eureka/
+  SPRING_CONFIG_IMPORT: configserver:http://config-server:8888

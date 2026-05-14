@@ -1,6 +1,5 @@
 # ──────────────────────────────────────────────────────────────
 # Staging Environment Variables
-# Project:  Spring PetClinic Microservices
 # ──────────────────────────────────────────────────────────────
 
 variable "environment" {
@@ -12,6 +11,11 @@ variable "environment" {
 variable "aws_account_id" {
   description = "AWS Account ID for IAM role ARN construction"
   type        = string
+
+  validation {
+    condition     = can(regex("^[0-9]{12}$", var.aws_account_id))
+    error_message = "aws_account_id must be exactly 12 digits. Check the AWS_ACCOUNT_ID GitHub secret."
+  }
 }
 
 variable "github_org" {
@@ -24,6 +28,12 @@ variable "aws_region" {
   description = "AWS region for staging resources"
   type        = string
   default     = "us-east-1"
+}
+
+variable "repository_prefix" {
+  description = "Prefix for ECR repository names. Leave empty so repos are named e.g. 'customers-service' to match the image references in helm/*/values.yaml."
+  type        = string
+  default     = ""
 }
 
 variable "project_code" {
@@ -110,43 +120,11 @@ variable "additional_secret_values" {
   sensitive   = true
   default     = {}
 }
-###############################################################################
-# ALB Module variables — SPC-005-T8
-# Add these to environments/staging/variables.tf
-###############################################################################
-
-variable "domain_name" {
-  description = "Base domain for the app e.g. petclinic.example.com. Used by the ALB module for the Ingress host rule and ACM certificate."
-  type        = string
-}
-
-variable "route53_zone_id" {
-  description = "Route 53 hosted zone ID for ACM DNS validation. Needed by the ALB module to validate the SSL certificate."
-  type        = string
-  default     = ""
-}
-
-variable "existing_acm_certificate_arn" {
-  description = "If an ACM certificate already exists, paste its ARN here. The ALB module will use it instead of creating a new one."
-  type        = string
-  default     = ""
-}
-
-variable "acm_certificate_arn" {
-  description = "ARN of the ACM certificate passed into the ALB module for HTTPS termination on port 443."
-  type        = string
-  default     = ""
-}
-
-# ── Temporary variables — replaced by module outputs once teammates merge ─────
-# These exist so you can run terraform plan before other modules are ready.
-# Each one has a TODO telling you when to remove it.
-
 
 variable "app_namespace" {
-  description = "Kubernetes namespace where api-gateway is deployed. Confirm with DevOps Eng 2 (SPC-042-T1)."
+  description = "Kubernetes namespace where api-gateway is deployed. Must match argocd/applications/*.yaml destination.namespace."
   type        = string
-  default     = "petclinic"
+  default     = "petclinic-staging"
 }
 
 variable "api_gateway_service_name" {
@@ -165,4 +143,36 @@ variable "lb_controller_chart_version" {
   description = "Pinned Helm chart version for the AWS Load Balancer Controller. Only change if there is a security advisory."
   type        = string
   default     = "1.7.1"
+}
+
+# ── RDS Module variables ─────────────────────────────────────────────────────
+
+variable "db_instance_class" {
+  description = "RDS instance type for staging MySQL database"
+  type        = string
+  default     = "db.t3.micro"
+}
+
+variable "db_allocated_storage" {
+  description = "Storage size in GB for the staging RDS instance"
+  type        = number
+  default     = 20
+}
+
+variable "domain_name" {
+  description = "Base domain for the app e.g. petclinic-group4.com. Used by the DNS module for the hosted zone and ACM certificate."
+  type        = string
+}
+
+# ── EKS cluster name — needed by ALB module ─────────────────────────────────
+variable "cluster_name" {
+  description = "EKS cluster name — must match what the EKS module creates"
+  type        = string
+  default     = "spc-stg-ue1-eks-main"
+}
+
+variable "default_tags" {
+  description = "Default tags applied by the DNS module to the hosted zone and ACM certificate"
+  type        = map(string)
+  default     = {}
 }

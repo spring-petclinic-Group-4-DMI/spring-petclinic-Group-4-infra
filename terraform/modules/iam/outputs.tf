@@ -1,14 +1,3 @@
-# ──────────────────────────────────────────────────────────────
-# IAM Module Outputs
-# Project:  Spring PetClinic Microservices
-# These outputs are consumed by the EKS and CI/CD modules
-# ──────────────────────────────────────────────────────────────
-
-output "github_oidc_provider_arn" {
-  description = "ARN of the GitHub Actions OIDC provider"
-  value       = aws_iam_openid_connect_provider.github_oidc.arn
-}
-
 output "github_actions_ci_role_arn" {
   description = "ARN of the GitHub Actions CI role for building and pushing to ECR"
   value       = aws_iam_role.github_actions_ci.arn
@@ -28,3 +17,4 @@ output "eks_cluster_role_arn" {
   description = "ARN of the EKS cluster role for the control plane"
   value       = aws_iam_role.eks_cluster.arn
 }
+

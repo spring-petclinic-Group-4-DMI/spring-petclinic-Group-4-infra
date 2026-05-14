@@ -33,3 +33,9 @@ variable "eks_cluster_name" {
   type        = string
   default     = "spc-stg-ue1-eks-main"
 }
+
+variable "common_tags" {
+  description = "Common tags applied to all VPC resources"
+  type        = map(string)
+  default     = {}
+}

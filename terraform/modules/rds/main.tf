@@ -1,8 +1,5 @@
 # ──────────────────────────────────────────────────────────────
 # RDS MySQL Module
-# Project:  Spring PetClinic Microservices
-# Standard: spc-[env]-ue1-rds-[resource]
-# ──────────────────────────────────────────────────────────────
 
 # Security Group — controls who can reach RDS on port 3306
 resource "aws_security_group" "rds_sg" {
@@ -85,13 +82,13 @@ resource "aws_db_instance" "mysql" {
   deletion_protection = false # set to true in prod
   skip_final_snapshot = true  # set to false in prod
 
-  # Backup configuration
-  backup_retention_period = 7
+  # Backup configuration — free tier restricts backup_retention_period to 0
+  backup_retention_period = 0
   backup_window           = "03:00-04:00"
   maintenance_window      = "Mon:04:00-Mon:05:00"
 
-  # Monitoring
-  performance_insights_enabled = true
+  # Monitoring — not available on free tier db.t3.micro
+  performance_insights_enabled = false
 
   tags = merge(var.common_tags, {
     Name = "spc-${var.environment}-ue1-rds-db"

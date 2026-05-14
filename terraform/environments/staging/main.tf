@@ -1,17 +1,22 @@
 # ──────────────────────────────────────────────────────────────
 # Staging Environment - Main
-# Project:  Spring PetClinic Microservices
-# Region:   us-east-1
-# Owner:    Group 4 DevOps Team
 # ──────────────────────────────────────────────────────────────
 
 terraform {
-  required_version = ">= 1.6.0"
+  required_version = ">= 1.7.0"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "6.44.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.30"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.13"
     }
   }
 
@@ -25,12 +30,9 @@ terraform {
 }
 
 provider "aws" {
-  region = "us-east-1"
-
-  default_tags {
-    tags = local.common_tags
-  }
+  region = var.aws_region
 }
+
 
 locals {
   common_tags = {
@@ -52,24 +54,44 @@ locals {
   )
 }
 
-# ──────────────────────────────────────────────────────────────
-# IAM Module
-# ──────────────────────────────────────────────────────────────
+data "aws_eks_cluster_auth" "main" {
+  name = module.eks.cluster_name
+}
+
+provider "kubernetes" {
+  host                   = module.eks.cluster_endpoint
+  cluster_ca_certificate = base64decode(module.eks.cluster_ca_data)
+  token                  = data.aws_eks_cluster_auth.main.token
+}
+
+provider "helm" {
+  kubernetes {
+    host                   = module.eks.cluster_endpoint
+    cluster_ca_certificate = base64decode(module.eks.cluster_ca_data)
+    token                  = data.aws_eks_cluster_auth.main.token
+  }
+}
+
 module "iam" {
   source = "../../modules/iam"
 
-  environment    = var.environment
-  aws_account_id = var.aws_account_id
-  github_org     = var.github_org
-  common_tags    = local.common_tags
+  environment                        = var.environment
+  aws_account_id                     = var.aws_account_id
+  github_org                         = var.github_org
+  github_actions_secret_arns         = [module.app_secrets.secret_arn]
+  github_actions_ecr_repository_arns = values(module.ecr.repository_arns)
+  common_tags                        = local.common_tags
 }
 
-# ──────────────────────────────────────────────────────────────
-# Secrets Module
-# ──────────────────────────────────────────────────────────────
-module "app_secrets" {
-  source = "../../modules/secrets"
+module "ecr" {
+  source            = "../../modules/ecr"
+  aws_region        = var.aws_region
+  environment       = var.environment
+  repository_prefix = var.repository_prefix
+}
 
+module "app_secrets" {
+  source                = "../../modules/secrets"
   project_code          = var.project_code
   environment_code      = var.environment_code
   region_code           = var.region_code
@@ -83,9 +105,6 @@ module "app_secrets" {
   tags                  = local.common_tags
 }
 
-# ── VPC Module — written by Cloud/Infra Eng 1 (SPC-010) ─────────────────────
-# This call block added temporarily to unblock ALB module validation.
-# The vpc module owner should own this block in their PR.
 module "vpc" {
   source = "../../modules/vpc"
 
@@ -97,17 +116,107 @@ module "vpc" {
   eks_cluster_name        = "spc-stg-ue1-eks-main"
 }
 
+module "eks" {
+  source = "../../modules/eks"
+
+  cluster_name          = var.cluster_name
+  vpc_id                = module.vpc.vpc_id
+  private_subnet_az1_id = module.vpc.private_subnet_az1_id
+  private_subnet_az2_id = module.vpc.private_subnet_az2_id
+  eks_node_sg_id        = module.vpc.eks_node_sg_id
+  eks_cluster_role_arn  = module.iam.eks_cluster_role_arn
+  eks_node_role_arn     = module.iam.eks_node_role_arn
+  terraform_role_arn    = module.iam.terraform_role_arn
+
+  depends_on = [module.iam]
+}
+
+module "karpenter" {
+  source = "../../modules/karpenter"
+
+  cluster_name      = module.eks.cluster_name
+  cluster_endpoint  = module.eks.cluster_endpoint
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_issuer_url   = module.eks.oidc_issuer_url
+  environment       = var.environment_code
+  aws_account_id    = var.aws_account_id
+  common_tags       = local.common_tags
+}
+
+resource "kubernetes_namespace" "app" {
+  metadata {
+    name = var.app_namespace
+  }
+
+  depends_on = [module.eks]
+}
+
+
 module "alb" {
   source = "../../modules/alb"
 
-  aws_region             = var.aws_region
-  common_tags            = local.common_tags
-  domain_name            = var.domain_name
+  aws_region                  = var.aws_region
+  common_tags                 = local.common_tags
+  domain_name                 = var.domain_name
+  vpc_id                      = module.vpc.vpc_id
+  public_subnet_ids           = module.vpc.public_subnet_ids
+  alb_security_group_id       = module.vpc.alb_security_group_id
+  cluster_name                = module.eks.cluster_name
+  oidc_issuer_url             = module.eks.oidc_issuer_url
+  oidc_provider_arn           = module.eks.oidc_provider_arn
+  acm_certificate_arn         = module.dns.certificate_arn
+  app_namespace               = var.app_namespace
+  api_gateway_service_name    = var.api_gateway_service_name
+  api_gateway_service_port    = var.api_gateway_service_port
+  lb_controller_chart_version = var.lb_controller_chart_version
+  depends_on                  = [kubernetes_namespace.app]
 
-  vpc_id                 = module.vpc.vpc_id
-  public_subnet_ids      = module.vpc.public_subnet_ids
-  alb_security_group_id  = module.vpc.alb_security_group_id
-  cluster_name           = module.eks.cluster_name
-  lb_controller_role_arn = module.iam.lb_controller_role_arn
-  acm_certificate_arn    = var.acm_certificate_arn
 }
+
+module "dns" {
+  source = "../../modules/dns"
+
+  domain_name  = var.domain_name
+  default_tags = var.default_tags
+}
+
+resource "aws_route53_record" "staging_a" {
+  zone_id = module.dns.hosted_zone_id
+  name    = "staging.${var.domain_name}"
+  type    = "A"
+
+  alias {
+    name                   = module.alb.alb_dns_name
+    zone_id                = module.alb.alb_zone_id
+    evaluate_target_health = true
+  }
+}
+
+resource "aws_route53_record" "staging_aaaa" {
+  zone_id = module.dns.hosted_zone_id
+  name    = "staging.${var.domain_name}"
+  type    = "AAAA"
+
+  alias {
+    name                   = module.alb.alb_dns_name
+    zone_id                = module.alb.alb_zone_id
+    evaluate_target_health = true
+  }
+}
+
+module "rds" {
+  source = "../../modules/rds"
+
+  environment               = var.environment
+  vpc_id                    = module.vpc.vpc_id
+  private_subnet_ids        = module.vpc.private_subnet_ids
+  allowed_security_group_id = module.vpc.eks_node_sg_id
+  db_name                   = var.db_name
+  db_username               = var.mysql_username
+  db_password               = var.mysql_password
+  db_instance_class         = var.db_instance_class
+  allocated_storage         = var.db_allocated_storage
+  common_tags               = local.common_tags
+}
+
+

@@ -1,0 +1,88 @@
+name: Terraform
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [staging]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  TF_VAR_environment: staging
+  TF_VAR_environment_code: stg
+  TF_VAR_aws_region: us-east-1
+  TF_VAR_region_code: ue1
+  TF_VAR_github_org: spring-petclinic-Group-4-DMI
+  TF_VAR_project_code: spc
+  TF_VAR_repository_prefix: spring-petclinic
+  TF_VAR_cluster_name: spc-stg-ue1-eks-main
+  TF_VAR_secret_component: app
+  TF_VAR_secret_resource_name: secret
+  TF_VAR_secret_resource_count: "01"
+  TF_VAR_secret_description: "Application secrets for staging environment"
+  TF_VAR_create_secret_version: "true"
+  TF_VAR_db_name: petclinic
+  TF_VAR_db_instance_class: db.t3.micro
+  TF_VAR_db_allocated_storage: 20
+  TF_VAR_staging_alb_name: spc-stg-ue1-alb-external
+  TF_VAR_domain_name: pawscare.online.com
+  TF_VAR_app_namespace: petclinic-staging
+  TF_VAR_api_gateway_service_name: api-gateway
+  TF_VAR_api_gateway_service_port: 8080
+  TF_VAR_lb_controller_chart_version: "1.7.1"
+  TF_VAR_prod_alb_name: spc-prod-ue1-alb-external
+  TF_VAR_create_prod_records: "false"
+  TF_VAR_default_tags: '{}'
+  TF_VAR_additional_secret_values: '{}'
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform/environments/staging
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Set Terraform vars from GitHub Secrets
+        run: |
+          echo "TF_VAR_aws_account_id=${{ secrets.AWS_ACCOUNT_ID }}" >> $GITHUB_ENV
+          echo "TF_VAR_mysql_username=${{ secrets.MYSQL_USERNAME }}" >> $GITHUB_ENV
+          echo "TF_VAR_mysql_password=${{ secrets.MYSQL_PASSWORD }}" >> $GITHUB_ENV
+          echo "TF_VAR_openai_api_key=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive ../..
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        run: terraform plan -out=tfplan
+
+      - name: Terraform apply
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' && github.ref == 'refs/heads/staging'
+        run: terraform apply -auto-approve tfplan
+
+     # - name: Terraform destroy
+     #   if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' && github.ref == 'refs/heads/staging'
+     #   run: terraform destroy -auto-approve

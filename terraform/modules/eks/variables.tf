@@ -1,5 +1,5 @@
 variable "cluster_name" {
-  description = "EKS cluster name. Must match kubernetes.io/cluster tag on VPC subnets."
+  description = "The name of the EKS cluster"
   type        = string
   default     = "spc-stg-ue1-eks-main"
 }
@@ -29,15 +29,13 @@ variable "eks_node_sg_id" {
 }
 
 variable "eks_cluster_role_arn" {
-  description = "IAM role ARN for EKS control plane"
+  description = "IAM role ARN for EKS control plane. Pass module.iam.eks_cluster_role_arn from the root module."
   type        = string
-  default     = "arn:aws:iam::338593158888:role/spc-staging-ue1-iam-ro-eks-cluster"
 }
 
 variable "eks_node_role_arn" {
-  description = "IAM role ARN for EKS worker nodes"
+  description = "IAM role ARN for EKS worker nodes. Pass module.iam.eks_node_role_arn from the root module."
   type        = string
-  default     = "arn:aws:iam::338593158888:role/spc-staging-ue1-iam-ro-eks-node"
 }
 
 variable "node_desired_size" {
@@ -68,4 +66,9 @@ variable "kubernetes_version" {
   description = "Kubernetes version"
   type        = string
   default     = "1.31"
+}
+
+variable "terraform_role_arn" {
+  description = "IAM role ARN for Terraform to manage EKS cluster access. Passed from module.iam.terraform_role_arn."
+  type        = string
 }

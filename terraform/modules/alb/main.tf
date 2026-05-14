@@ -1,22 +1,4 @@
-###############################################################################
-# modules/alb/main.tf
-# Ticket : SPC-005-T8
-# Owner  : (your name)
-#
-# This module provisions:
-#   1. An Application Load Balancer (ALB) in the public subnets
-#   2. HTTP listener  (port 80)  — redirects to HTTPS
-#   3. HTTPS listener (port 443) — SSL termination using ACM certificate
-#   4. AWS Load Balancer Controller installed into EKS via Helm
-#   5. Kubernetes Ingress that routes external traffic to the api-gateway service
-#
-# All values this module needs are passed in as variables.
-# This module does NOT create VPC, subnets, EKS, or IAM roles —
-# those are other people's modules. This module only receives their
-# outputs as input variables.
-###############################################################################
-
-###############################################################################
+#################################################################################
 # 1. APPLICATION LOAD BALANCER
 ###############################################################################
 
@@ -26,7 +8,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 5.0"
+      version = "6.44.0"
     }
     helm = {
       source  = "hashicorp/helm"
@@ -42,7 +24,7 @@ terraform {
 resource "aws_lb" "this" {
   # Naming standard: spc-stg-ue1-alb-external
   name               = "spc-stg-ue1-alb-external"
-  internal           = false            # false = internet-facing
+  internal           = false # false = internet-facing
   load_balancer_type = "application"
 
   # These come from the vpc module (Cloud/Infra Eng 1 — SPC-010-T1 / SPC-010-T2)
@@ -50,7 +32,7 @@ resource "aws_lb" "this" {
   security_groups = [var.alb_security_group_id]
   subnets         = var.public_subnet_ids
 
-  drop_invalid_header_fields = true     # security best practice
+  drop_invalid_header_fields = true # security best practice
 
   tags = merge(var.common_tags, {
     Name = "spc-stg-ue1-alb-external"
@@ -68,13 +50,13 @@ resource "aws_lb_target_group" "default" {
   name        = "spc-stg-ue1-alb-tg-default"
   port        = 8080
   protocol    = "HTTP"
-  target_type = "ip"                    # required for EKS pod-level routing
+  target_type = "ip" # required for EKS pod-level routing
 
   # vpc_id comes from the vpc module (Cloud/Infra Eng 1 — SPC-010-T1)
   vpc_id = var.vpc_id
 
   health_check {
-    path                = "/actuator/health"  # standard Spring Boot endpoint
+    path                = "/actuator/health" # standard Spring Boot endpoint
     healthy_threshold   = 2
     unhealthy_threshold = 3
     interval            = 15
@@ -104,7 +86,7 @@ resource "aws_lb_listener" "http" {
     redirect {
       port        = "443"
       protocol    = "HTTPS"
-      status_code = "HTTP_301"          # permanent redirect
+      status_code = "HTTP_301" # permanent redirect
     }
   }
 
@@ -140,13 +122,70 @@ resource "aws_lb_listener" "https" {
 }
 
 ###############################################################################
-# 5. AWS LOAD BALANCER CONTROLLER — Kubernetes ServiceAccount
+# 5. LB CONTROLLER — IAM role + policy (IRSA)
+#
+# The role is defined here (rather than in module.iam) because its trust
+# policy needs the EKS OIDC provider, which is created by module.eks.
+# Putting it in module.iam would be circular: module.eks consumes module.iam,
+# so module.iam can't also depend on module.eks.
+#
+# Permissions policy is the AWS-recommended policy for the LB Controller
+# (vendored from kubernetes-sigs/aws-load-balancer-controller v2.7+).
+###############################################################################
+
+data "aws_iam_policy_document" "lb_controller_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    effect  = "Allow"
+
+    principals {
+      type        = "Federated"
+      identifiers = [var.oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(var.oidc_issuer_url, "https://", "")}:sub"
+      values   = ["system:serviceaccount:kube-system:aws-load-balancer-controller"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(var.oidc_issuer_url, "https://", "")}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "lb_controller" {
+  name               = "spc-stg-ue1-iam-ro-lb-controller"
+  assume_role_policy = data.aws_iam_policy_document.lb_controller_assume_role.json
+
+  tags = merge(var.common_tags, {
+    Name = "spc-stg-ue1-iam-ro-lb-controller"
+  })
+}
+
+resource "aws_iam_policy" "lb_controller" {
+  name        = "spc-stg-ue1-iam-policy-lb-controller"
+  description = "Permissions for the AWS Load Balancer Controller (kubernetes-sigs/aws-load-balancer-controller v2.7+)"
+  policy      = file("${path.module}/lb_controller_policy.json")
+
+  tags = merge(var.common_tags, {
+    Name = "spc-stg-ue1-iam-policy-lb-controller"
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "lb_controller" {
+  role       = aws_iam_role.lb_controller.name
+  policy_arn = aws_iam_policy.lb_controller.arn
+}
+
+###############################################################################
+# 6. LB CONTROLLER — Kubernetes ServiceAccount
 #
 # The controller needs a Kubernetes identity (ServiceAccount) to run as.
-# The annotation below links it to an IAM role using IRSA — this gives
-# the controller AWS permissions to create and manage the ALB automatically.
-#
-# lb_controller_role_arn comes from Cloud/Infra Eng 1 (SPC-016-T1)
+# The annotation below links it to the IAM role above using IRSA.
 ###############################################################################
 
 resource "kubernetes_service_account" "aws_lb_controller" {
@@ -155,8 +194,7 @@ resource "kubernetes_service_account" "aws_lb_controller" {
     namespace = "kube-system"
 
     annotations = {
-      # IRSA annotation — links this Kubernetes identity to the AWS IAM role
-      "eks.amazonaws.com/role-arn" = var.lb_controller_role_arn
+      "eks.amazonaws.com/role-arn" = aws_iam_role.lb_controller.arn
     }
 
     labels = {
@@ -167,7 +205,7 @@ resource "kubernetes_service_account" "aws_lb_controller" {
 }
 
 ###############################################################################
-# 6. AWS LOAD BALANCER CONTROLLER — Helm Release
+# 7. LB CONTROLLER — Helm Release
 #
 # Installs the controller as a background process inside EKS.
 # Once running, it watches for Ingress resources and automatically
@@ -186,7 +224,7 @@ resource "helm_release" "aws_lb_controller" {
   # The EKS cluster this controller will manage
   set {
     name  = "clusterName"
-    value = var.cluster_name             # from eks module
+    value = var.cluster_name # from eks module
   }
 
   # Use the ServiceAccount we created above (IRSA already wired via annotation)
@@ -208,7 +246,7 @@ resource "helm_release" "aws_lb_controller" {
   # vpc and region so the controller knows where it is
   set {
     name  = "vpcId"
-    value = var.vpc_id                   # from vpc module
+    value = var.vpc_id # from vpc module
   }
   set {
     name  = "region"
@@ -216,38 +254,38 @@ resource "helm_release" "aws_lb_controller" {
   }
 
   # Shield and WAF off for staging
-  set { 
-    name = "enableShield" 
-    value = "false" 
+  set {
+    name  = "enableShield"
+    value = "false"
   }
-  set { 
-    name = "enableWaf"    
-    value = "false" 
-    }
+  set {
+    name  = "enableWaf"
+    value = "false"
+  }
 
   # Resource limits (required by team security checklist — SPC-072)
-  set { 
-    name = "resources.requests.cpu"    
-    value = "100m"  
-    }
-  set { 
-    name = "resources.requests.memory" 
-    value = "128Mi" 
-    }
   set {
-     name = "resources.limits.cpu"      
-     value = "200m"  
-     }
+    name  = "resources.requests.cpu"
+    value = "100m"
+  }
   set {
-    name = "resources.limits.memory"   
-    value = "256Mi" 
-    }
+    name  = "resources.requests.memory"
+    value = "128Mi"
+  }
+  set {
+    name  = "resources.limits.cpu"
+    value = "200m"
+  }
+  set {
+    name  = "resources.limits.memory"
+    value = "256Mi"
+  }
 
   depends_on = [kubernetes_service_account.aws_lb_controller]
 }
 
 ###############################################################################
-# 7. KUBERNETES INGRESS
+# 8. KUBERNETES INGRESS
 #
 # This tells the LB Controller exactly how to configure the ALB:
 # which subnets, which certificate, which ports, and where to send traffic.
@@ -259,13 +297,13 @@ resource "helm_release" "aws_lb_controller" {
 resource "kubernetes_ingress_v1" "api_gateway" {
   metadata {
     name      = "spc-stg-ue1-api-gateway-ingress"
-    namespace = var.app_namespace        # confirm with DevOps Eng 2
+    namespace = var.app_namespace # confirm with DevOps Eng 2
 
     annotations = {
       # Create an internet-facing ALB
-      "kubernetes.io/ingress.class"               = "alb"
-      "alb.ingress.kubernetes.io/scheme"          = "internet-facing"
-      "alb.ingress.kubernetes.io/target-type"     = "ip"
+      "kubernetes.io/ingress.class"           = "alb"
+      "alb.ingress.kubernetes.io/scheme"      = "internet-facing"
+      "alb.ingress.kubernetes.io/target-type" = "ip"
 
       # Subnets and security group — from vpc module
       "alb.ingress.kubernetes.io/subnets"         = join(",", var.public_subnet_ids)
@@ -297,11 +335,12 @@ resource "kubernetes_ingress_v1" "api_gateway" {
 
   spec {
     rule {
-      host = "petclinic.${var.domain_name}"
+      host = "staging.${var.domain_name}"
+
 
       http {
         path {
-          path      = "/*"
+          path      = "/"
           path_type = "Prefix"
 
           backend {
