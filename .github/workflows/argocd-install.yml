@@ -5,7 +5,7 @@ on:
   push:
     branches: [staging]
     paths:
-      - "argocd-install/**"
+      - "argocd/install/**"
       - ".github/workflows/argocd-install.yml"  # manual trigger only — you run this once
 
 permissions:
@@ -25,7 +25,7 @@ jobs:
       - name: Configure AWS credentials via OIDC
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.TF_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Update kubeconfig
@@ -33,6 +33,13 @@ jobs:
           aws eks update-kubeconfig \
             --region ${{ env.AWS_REGION }} \
             --name ${{ env.CLUSTER_NAME }}
+
+      - name: Verify Kubernetes access
+        run: |
+          kubectl cluster-info
+          kubectl auth can-i create namespace
+          kubectl get nodes
+
 
       - name: Add Argo Helm repo
         run: |
