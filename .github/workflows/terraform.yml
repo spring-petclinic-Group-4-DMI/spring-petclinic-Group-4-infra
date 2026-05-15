@@ -145,21 +145,21 @@ jobs:
 
       - name: Wait for Flyway migration to complete
         run: |
-          echo "Waiting for ArgoCD to create the flyway-migrate job..."
+          echo "Waiting for db-migrations ArgoCD application to be Synced and Healthy..."
           for i in $(seq 1 30); do
-            if kubectl get job flyway-migrate \
-              --namespace=${{ env.TF_VAR_app_namespace }} > /dev/null 2>&1; then
-              echo "Job found. Waiting for completion..."
-              break
+            SYNC=$(kubectl get application db-migrations -n argocd \
+              -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
+            HEALTH=$(kubectl get application db-migrations -n argocd \
+              -o jsonpath='{.status.health.status}' 2>/dev/null || echo "Unknown")
+            echo "Attempt $i/30 — sync=$SYNC health=$HEALTH"
+            if [[ "$SYNC" == "Synced" && "$HEALTH" == "Healthy" ]]; then
+              echo "db-migrations is Synced and Healthy — migration complete"
+              exit 0
             fi
-            echo "Attempt $i/30 — job not yet created, retrying in 10s..."
             sleep 10
           done
-
-          kubectl wait job/flyway-migrate \
-            --for=condition=complete \
-            --namespace=${{ env.TF_VAR_app_namespace }} \
-            --timeout=300s
+          echo "ERROR: db-migrations did not become Synced/Healthy in time"
+          exit 1
 
      # - name: Terraform destroy
      #   if: github.event_name == 'workflow_dispatch' || github.event_name == 'push' && github.ref == 'refs/heads/staging'
