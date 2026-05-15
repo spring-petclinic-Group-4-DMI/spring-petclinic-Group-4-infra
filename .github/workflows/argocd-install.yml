@@ -50,11 +50,20 @@ jobs:
       - name: Install ArgoCD
         run: |
           kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+
+          # Reset stuck or failed Helm release from a previous interrupted run
+          HELM_STATUS=$(helm status argocd --namespace argocd 2>/dev/null | grep "^STATUS:" | awk '{print $2}' || echo "not-found")
+          echo "Current Helm release status: $HELM_STATUS"
+          if [[ "$HELM_STATUS" == "pending-install" || "$HELM_STATUS" == "pending-upgrade" || "$HELM_STATUS" == "pending-rollback" || "$HELM_STATUS" == "failed" ]]; then
+            echo "Stuck or failed release detected — clearing Helm state..."
+            kubectl delete secret -n argocd -l "owner=helm,name=argocd" || true
+          fi
+
           helm upgrade --install argocd argo/argo-cd \
             --namespace argocd \
             --version 7.3.4 \
             -f argocd/install/values.yaml \
-            --wait
+            --wait --timeout 10m
 
       - name: Apply AppProject and Applications
         run: |
