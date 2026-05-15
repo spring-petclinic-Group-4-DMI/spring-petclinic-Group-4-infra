@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: flyway-migrate
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: flyway
+          image: {{ .Values.flyway.image }}
+          args:
+            - migrate
+          env:
+            - name: FLYWAY_URL
+              value: {{ .Values.flyway.url | quote }}
+            - name: FLYWAY_SCHEMAS
+              value: {{ .Values.flyway.schemas | quote }}
+            - name: FLYWAY_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.flyway.credentialsSecret }}
+                  key: username
+            - name: FLYWAY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.flyway.credentialsSecret }}
+                  key: password
+            - name: FLYWAY_LOCATIONS
+              value: "filesystem:/flyway/sql"
+            - name: FLYWAY_BASELINE_ON_MIGRATE
+              value: "true"
+            - name: FLYWAY_VALIDATE_ON_MIGRATE
+              value: "false"
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+          volumeMounts:
+            - name: sql-files
+              mountPath: /flyway/sql
+      volumes:
+        - name: sql-files
+          configMap:
+            name: flyway-sql
