@@ -8,3 +8,4 @@ resources:
   limits:
     cpu: 500m
     memory: 1Gi
+# Update completed
