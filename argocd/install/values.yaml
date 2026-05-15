@@ -14,6 +14,7 @@ configs:
     url: "https://pawscare.online"
 
   repositories:
-    - url: https://github.com/spring-petclinic-Group-4-DMI/spring-petclinic-Group-4-infra.git
+    infra-repo:
+      url: https://github.com/spring-petclinic-Group-4-DMI/spring-petclinic-Group-4-infra.git
       name: infra-repo
       type: git
