@@ -46,19 +46,29 @@ jobs:
         run: |
           kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
 
-          # Reset stuck or failed Helm release from a previous interrupted run
-          HELM_STATUS=$(helm status argocd --namespace argocd 2>/dev/null | grep "^STATUS:" | awk '{print $2}' || echo "not-found")
-          echo "Current Helm release status: $HELM_STATUS"
-          if [[ "$HELM_STATUS" == "pending-install" || "$HELM_STATUS" == "pending-upgrade" || "$HELM_STATUS" == "pending-rollback" || "$HELM_STATUS" == "failed" ]]; then
-            echo "Stuck or failed release detected — clearing Helm state..."
-            kubectl delete secret -n argocd -l "owner=helm,name=argocd" || true
-          fi
+          # If ArgoCD server is already running, skip Helm install entirely
+          if kubectl get deployment argocd-server -n argocd &>/dev/null; then
+            echo "ArgoCD already deployed — skipping Helm install"
+          else
+            echo "ArgoCD not found — running fresh install"
 
-          helm upgrade --install argocd argo/argo-cd \
-            --namespace argocd \
-            --version 7.3.4 \
-            -f argocd/install/values.yaml \
-            --wait --timeout 10m
+            # Clean up any stuck pre-install jobs from a previous failed attempt
+            kubectl delete job argocd-redis-secret-init -n argocd 2>/dev/null || true
+
+            # Clear any stuck or failed Helm release state
+            HELM_STATUS=$(helm status argocd --namespace argocd 2>/dev/null | grep "^STATUS:" | awk '{print $2}' || echo "not-found")
+            echo "Helm release status: $HELM_STATUS"
+            if [[ "$HELM_STATUS" == "pending-install" || "$HELM_STATUS" == "pending-upgrade" || "$HELM_STATUS" == "pending-rollback" || "$HELM_STATUS" == "failed" ]]; then
+              echo "Clearing stuck Helm state..."
+              kubectl delete secret -n argocd -l "owner=helm,name=argocd" || true
+            fi
+
+            helm upgrade --install argocd argo/argo-cd \
+              --namespace argocd \
+              --version 7.3.4 \
+              -f argocd/install/values.yaml \
+              --wait --timeout 10m
+          fi
 
       - name: Apply AppProject and Applications
         run: |
