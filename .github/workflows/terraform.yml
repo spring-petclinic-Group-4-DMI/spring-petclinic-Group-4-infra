@@ -111,7 +111,7 @@ jobs:
       - name: Create database credentials secret
         if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/staging'
         run: |
-          kubectl create secret generic db-credentials \
+          kubectl create secret generic rds-credentials \
             --namespace=${{ env.TF_VAR_app_namespace }} \
             --from-literal=username=${{ secrets.MYSQL_USERNAME }} \
             --from-literal=password=${{ secrets.MYSQL_PASSWORD }} \
