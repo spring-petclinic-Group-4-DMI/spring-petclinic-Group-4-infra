@@ -2,7 +2,7 @@ flyway:
   image: flyway/flyway:10-mysql
   url: ""
   schemas: petclinic
-  credentialsSecret: db-credentials
+  credentialsSecret: rds-credentials
 
 resources:
   requests:
