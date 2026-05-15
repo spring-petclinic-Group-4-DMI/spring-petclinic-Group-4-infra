@@ -125,6 +125,17 @@ jobs:
       - name: Wait for Flyway migration to complete
         if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/staging'
         run: |
+          echo "Waiting for ArgoCD to create the flyway-migrate job..."
+          for i in $(seq 1 30); do
+            if kubectl get job flyway-migrate \
+              --namespace=${{ env.TF_VAR_app_namespace }} > /dev/null 2>&1; then
+              echo "Job found. Waiting for completion..."
+              break
+            fi
+            echo "Attempt $i/30 — job not yet created, retrying in 10s..."
+            sleep 10
+          done
+
           kubectl wait job/flyway-migrate \
             --for=condition=complete \
             --namespace=${{ env.TF_VAR_app_namespace }} \
