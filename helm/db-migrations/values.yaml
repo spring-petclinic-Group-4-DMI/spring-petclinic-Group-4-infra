@@ -1,0 +1,13 @@
+flyway:
+  image: flyway/flyway:10-mysql
+  url: ""
+  schemas: petclinic
+  credentialsSecret: db-credentials
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

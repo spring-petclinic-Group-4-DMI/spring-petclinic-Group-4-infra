@@ -1,0 +1,6 @@
+apiVersion: v2
+name: db-migrations
+description: Flyway database migrations for Spring PetClinic
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
