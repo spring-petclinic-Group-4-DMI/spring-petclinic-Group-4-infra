@@ -117,6 +117,24 @@ jobs:
             --from-literal=password=${{ secrets.MYSQL_PASSWORD }} \
             --dry-run=client -o yaml | kubectl apply -f -
 
+      - name: Install ArgoCD (idempotent)
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/staging'
+        working-directory: ${{ github.workspace }}
+        run: |
+          helm repo add argo https://argoproj.github.io/argo-helm
+          helm repo update
+          kubectl create namespace argocd --dry-run=client -o yaml | kubectl apply -f -
+          helm upgrade --install argocd argo/argo-cd \
+            --namespace argocd \
+            --version 7.3.4 \
+            -f argocd/install/values.yaml \
+            --wait --timeout 10m
+
+      - name: Apply AppProject
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/staging'
+        working-directory: ${{ github.workspace }}
+        run: kubectl apply -f argocd/projects/
+
       - name: Apply db-migrations ArgoCD application
         if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/staging'
         working-directory: ${{ github.workspace }}
