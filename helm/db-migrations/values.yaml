@@ -1,8 +1,19 @@
+image:
+  repository: 428101261622.dkr.ecr.us-east-1.amazonaws.com/spring-petclinic/db-migrations
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+job:
+  backoffLimit: 3
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 3600
+
 flyway:
-  image: flyway/flyway:10-mysql
   url: ""
   schemas: petclinic
   credentialsSecret: rds-credentials
+  baselineOnMigrate: "false"
+  validateOnMigrate: "true"
 
 resources:
   requests:

@@ -21,10 +21,10 @@ output "alb_zone_id" {
   value       = aws_lb.this.zone_id
 }
 
-# output "https_listener_arn" {
-#  description = "ARN of the HTTPS (port 443) listener. Useful if additional routing rules need to be added later."
-#  value       = aws_lb_listener.https.arn
-#}
+output "https_listener_arn" {
+  description = "ARN of the HTTPS (port 443) listener. Useful if additional routing rules need to be added later."
+  value       = aws_lb_listener.https.arn
+}
 
 output "acm_certificate_arn" {
   description = "ARN of the ACM TLS certificate used by the ALB. Passed through from the module input for use by other modules that need to know which cert is in use."

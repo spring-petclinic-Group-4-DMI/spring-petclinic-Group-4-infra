@@ -9,10 +9,10 @@ service:
 resources:
   requests:
     cpu: 200m
-    memory: 256Mi
+    memory: 512Mi
   limits:
     cpu: 500m
-    memory: 512Mi
+    memory: 1Gi
 autoscaling:
   enabled: true
   minReplicas: 1
@@ -20,3 +20,4 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
 configMap:
   SPRING_PROFILES_ACTIVE: kubernetes
+  BPL_JVM_THREAD_COUNT: "50"

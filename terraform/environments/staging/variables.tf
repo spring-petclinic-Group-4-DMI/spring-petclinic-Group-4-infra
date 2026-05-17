@@ -145,6 +145,12 @@ variable "lb_controller_chart_version" {
   default     = "1.7.1"
 }
 
+variable "metrics_server_chart_version" {
+  description = "Pinned Helm chart version for metrics-server, required by Kubernetes HPAs."
+  type        = string
+  default     = "3.13.0"
+}
+
 # ── RDS Module variables ─────────────────────────────────────────────────────
 
 variable "db_instance_class" {

@@ -41,9 +41,8 @@ resource "aws_lb" "this" {
 
 ###############################################################################
 # 2. TARGET GROUP
-# Required so the HTTPS listener has a valid default destination.
-# The LB Controller creates its own target groups from the Ingress rules,
-# but AWS requires a default one for the listener to be created.
+# Terraform owns this target group. The AWS Load Balancer Controller registers
+# api-gateway pod IPs into it through the TargetGroupBinding below.
 ###############################################################################
 
 resource "aws_lb_target_group" "default" {
@@ -97,25 +96,24 @@ resource "aws_lb_listener" "http" {
 # Traffic is decrypted at this point and forwarded as plain HTTP internally.
 ###############################################################################
 
-# resource "aws_lb_listener" "https" {
-#  load_balancer_arn = aws_lb.this.arn
-#  port              = 443
-#  protocol          = "HTTPS"
-#  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+resource "aws_lb_listener" "https" {
+  load_balancer_arn = aws_lb.this.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
 
-# acm_certificate_arn comes from whoever manages the ACM cert
-# (either Cloud/Infra Eng 1 or created in environments/staging/main.tf)
-#  certificate_arn = var.acm_certificate_arn
+  # acm_certificate_arn comes from the DNS module in environments/staging/main.tf.
+  certificate_arn = var.acm_certificate_arn
 
-#  default_action {
-#    type             = "forward"
-#    target_group_arn = aws_lb_target_group.default.arn
-#  }
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.default.arn
+  }
 
-#  tags = merge(var.common_tags, {
-#    Name = "spc-stg-ue1-alb-listener-https"
-#  })
-#}
+  tags = merge(var.common_tags, {
+    Name = "spc-stg-ue1-alb-listener-https"
+  })
+}
 
 ###############################################################################
 # 5. LB CONTROLLER — IAM role + policy (IRSA)
@@ -204,8 +202,8 @@ resource "kubernetes_service_account" "aws_lb_controller" {
 # 7. LB CONTROLLER — Helm Release
 #
 # Installs the controller as a background process inside EKS.
-# Once running, it watches for Ingress resources and automatically
-# creates and configures the ALB in AWS.
+# In this module it is used for TargetGroupBinding reconciliation only; the
+# ALB, listeners, and target group remain Terraform-managed.
 #
 # cluster_name comes from the eks module (Cloud/Infra Eng 2 — SPC-011-T1)
 ###############################################################################
@@ -216,6 +214,8 @@ resource "helm_release" "aws_lb_controller" {
   chart      = "aws-load-balancer-controller"
   version    = var.lb_controller_chart_version
   namespace  = "kube-system"
+  wait       = true
+  timeout    = 600
 
   # The EKS cluster this controller will manage
   set {
@@ -281,78 +281,43 @@ resource "helm_release" "aws_lb_controller" {
 }
 
 ###############################################################################
-# 8. KUBERNETES INGRESS
+# 8. TARGET GROUP BINDING
 #
-# This tells the LB Controller exactly how to configure the ALB:
-# which subnets, which certificate, which ports, and where to send traffic.
-#
-# The backend service (api-gateway) is deployed by DevOps Eng 2 (SPC-042-T1).
-# The service name and namespace must match their Helm chart exactly.
+# Terraform owns the ALB, listeners, DNS alias, and target group. The AWS Load
+# Balancer Controller owns only pod target registration through this
+# TargetGroupBinding. This avoids the duplicate ALB ownership conflict that
+# happens when an Ingress tries to create an ALB with the same name.
 ###############################################################################
 
-resource "kubernetes_ingress_v1" "api_gateway" {
-  metadata {
-    name      = "spc-stg-ue1-api-gateway-ingress"
-    namespace = var.app_namespace # confirm with DevOps Eng 2
+resource "helm_release" "api_gateway_target_group_binding" {
+  name      = "api-gateway-target-group-binding"
+  chart     = "${path.module}/target-group-binding"
+  namespace = var.app_namespace
+  wait      = true
+  timeout   = 300
 
-    annotations = {
-      # Create an internet-facing ALB
-      "kubernetes.io/ingress.class"           = "alb"
-      "alb.ingress.kubernetes.io/scheme"      = "internet-facing"
-      "alb.ingress.kubernetes.io/target-type" = "ip"
-
-      # Subnets and security group — from vpc module
-      "alb.ingress.kubernetes.io/subnets"         = join(",", var.public_subnet_ids)
-      "alb.ingress.kubernetes.io/security-groups" = var.alb_security_group_id
-
-      # SSL certificate and redirect HTTP → HTTPS
-      "alb.ingress.kubernetes.io/certificate-arn" = var.acm_certificate_arn
-      "alb.ingress.kubernetes.io/ssl-policy"      = "ELBSecurityPolicy-TLS13-1-2-2021-06"
-      "alb.ingress.kubernetes.io/ssl-redirect"    = "443"
-
-      # Open both ports on the ALB
-      "alb.ingress.kubernetes.io/listen-ports" = jsonencode([
-        { "HTTP" = 80 },
-        { "HTTPS" = 443 }
-      ])
-
-      # Spring Boot health check
-      "alb.ingress.kubernetes.io/healthcheck-path" = "/actuator/health"
-
-      # ALB name as it appears in the AWS Console
-      "alb.ingress.kubernetes.io/load-balancer-name" = "spc-stg-ue1-alb-external"
-
-      # Propagate mandatory project tags to the ALB in AWS
-      "alb.ingress.kubernetes.io/tags" = join(",", [
-        for k, v in var.common_tags : "${k}=${v}"
-      ])
-    }
+  set {
+    name  = "name"
+    value = "api-gateway"
   }
 
-  spec {
-    rule {
-      host = "staging.${var.domain_name}"
-
-
-      http {
-        path {
-          path      = "/"
-          path_type = "Prefix"
-
-          backend {
-            service {
-              # Must match the Service name in DevOps Eng 2's Helm chart (SPC-042-T1)
-              name = var.api_gateway_service_name
-              port {
-                number = var.api_gateway_service_port
-              }
-            }
-          }
-        }
-      }
-    }
+  set {
+    name  = "serviceName"
+    value = var.api_gateway_service_name
   }
 
-  # Ingress must be created after the controller is running
-  depends_on = [helm_release.aws_lb_controller]
+  set {
+    name  = "servicePort"
+    value = tostring(var.api_gateway_service_port)
+  }
+
+  set {
+    name  = "targetGroupArn"
+    value = aws_lb_target_group.default.arn
+  }
+
+  depends_on = [
+    helm_release.aws_lb_controller,
+    aws_lb_listener.https,
+  ]
 }

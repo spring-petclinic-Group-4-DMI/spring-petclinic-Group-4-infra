@@ -11,7 +11,7 @@ Infrastructure-only repo for the **Spring PetClinic** microservices project (Gro
 - `argocd/` — Application + AppProject manifests; ArgoCD watches the `staging` branch of this repo
 - `db/migrations/` — Flyway-versioned SQL applied to RDS MySQL at deploy time
 
-These stacks reference each other indirectly through AWS resource names and Kubernetes service names, not through code imports. A change to a Helm chart's image tag or service name has implications for the ArgoCD app and the ALB ingress rule — verify all three when renaming.
+These stacks reference each other indirectly through AWS resource names and Kubernetes service names, not through code imports. A change to a Helm chart's image tag or service name has implications for the ArgoCD app and the ALB TargetGroupBinding — verify all three when renaming.
 
 ## Commands
 
@@ -43,18 +43,20 @@ helm template helm/<service-name> -f helm/<service-name>/values-staging.yaml
 
 ### Terraform composition (staging environment)
 
-`terraform/environments/staging/main.tf` is the only entry point — it composes 8 modules from `terraform/modules/`. Module inputs are wired through outputs, so the implicit dependency order matters:
+`terraform/environments/staging/main.tf` is the only entry point — it composes modules from `terraform/modules/` plus a small root-level metrics-server add-on. Module inputs are wired through outputs, so the implicit dependency order matters:
 
 1. `iam` → creates EKS cluster role, EKS node role, ALB controller role (IRSA), GitHub Actions CI role, Terraform role. The OIDC provider for GitHub Actions trusts both the app repo and this infra repo.
 2. `vpc` → 2 public + 2 private subnets across `us-east-1a/b`, NAT gateway, ALB SG, EKS node SG. Subnets are tagged for EKS auto-discovery (`kubernetes.io/role/elb`, `karpenter.sh/discovery`).
-3. `ecr` → 9 repositories, one per microservice, with lifecycle policy (untagged expire after 14 days, keep last N tagged).
+3. `ecr` → repositories for the microservice images plus `db-migrations`, with lifecycle policy (untagged expire after 14 days, keep last N tagged).
 4. `secrets` → single Secrets Manager entry following the naming standard `spc-stg-ue1-app-secret-01`. Bundles MySQL creds + OpenAI key + extras into one JSON blob.
 5. `eks` → EKS cluster `spc-stg-ue1-eks-main`, managed node group, OIDC provider, access entries (Terraform role gets cluster-admin via `EKSClusterAdminPolicy`).
-6. `alb` → ALB + HTTP→HTTPS redirect + AWS Load Balancer Controller (Helm-installed via Terraform) + a `kubernetes_ingress_v1` for `api-gateway`. The controller creates the actual target groups from Ingress rules; the default target group exists only because AWS requires one for the listener.
-7. `dns` → Route53 zone, ACM cert with DNS validation, A/AAAA records for `staging.<domain>` and (gated by `create_prod_records`) prod apex + www.
-8. `rds` → MySQL 8.0 in private subnets, ingress restricted to EKS node SG only.
+6. `karpenter` → controller/node IAM roles, SQS interruption queue, EventBridge rules.
+7. `metrics_server` → cluster metrics API for HPAs.
+8. `alb` → Terraform-managed ALB + HTTP→HTTPS redirect + HTTPS listener + AWS Load Balancer Controller + TargetGroupBinding for `api-gateway`. Terraform owns the ALB and target group; the controller only registers pod IP targets.
+9. `dns` → Route53 zone, ACM cert with DNS validation, A/AAAA records for `staging.<domain>` and (gated by `create_prod_records`) prod apex + www.
+10. `rds` → MySQL 8.0 in private subnets, ingress restricted to EKS node SG only.
 
-**State backend:** all components share `bucket=spc-staging-ue1-tfstate`, `key=dns/terraform.tfstate` (single state file for the whole staging env, despite the misleading `dns/` prefix). Locking via S3 native lockfile (`use_lockfile = true`), not DynamoDB.
+**State backend:** all components share `bucket=spc-staging-ue1-tfstate`, `key=staging/terraform.tfstate`. Locking uses the DynamoDB table `spc-staging-ue1-tfstate-lock`.
 
 ### Naming standard
 
@@ -85,9 +87,9 @@ So merging to `staging` is the deploy trigger. Do **not** add a separate `kubect
 
 ### The 9 microservices
 
-`config-server`, `discovery-server`, `api-gateway`, `customers-service`, `vets-service`, `visits-service`, `genai-service`, `admin-server`, `frontend`. The ECR module, the ArgoCD applications directory, and the Helm charts directory must all stay in sync — adding a 10th service requires changes in all three plus a new ArgoCD Application manifest.
+`config-server`, `discovery-server`, `api-gateway`, `customers-service`, `vets-service`, `visits-service`, `genai-service`, `admin-server`, `frontend`, plus the `db-migrations` image. The ECR module, the ArgoCD applications directory, and the Helm charts directory must all stay in sync when adding runtime services.
 
-The ALB Ingress (in `terraform/modules/alb/main.tf`) routes external traffic only to `api-gateway` on port 8080; internal services are reached via Spring Cloud service discovery, not via the ALB.
+The ALB TargetGroupBinding (in `terraform/modules/alb/main.tf`) routes external traffic only to `api-gateway` on port 8080; internal services are reached via Spring Cloud service discovery, not via the ALB.
 
 ## Workflow conventions (from CONTRIBUTING.md)
 

@@ -62,7 +62,7 @@ variable "acm_certificate_arn" {
 }
 
 variable "domain_name" {
-  description = "Base domain for the app e.g. petclinic.example.com. Used in the Ingress host rule."
+  description = "Base domain for the app e.g. petclinic.example.com. Kept for compatibility with the staging module interface; DNS alias records are managed in the root module."
   type        = string
 }
 
@@ -75,7 +75,7 @@ variable "app_namespace" {
 }
 
 variable "api_gateway_service_name" {
-  description = "Kubernetes Service name for api-gateway. Must match exactly what DevOps Eng 2 used in their Helm chart (SPC-042-T1). Default is api-gateway."
+  description = "Kubernetes Service name for api-gateway. Must match the Helm rendered Service name."
   type        = string
   default     = "api-gateway"
 }

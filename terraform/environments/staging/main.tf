@@ -72,6 +72,27 @@ provider "helm" {
   }
 }
 
+resource "helm_release" "metrics_server" {
+  name       = "metrics-server"
+  repository = "https://kubernetes-sigs.github.io/metrics-server/"
+  chart      = "metrics-server"
+  version    = var.metrics_server_chart_version
+  namespace  = "kube-system"
+  wait       = true
+  timeout    = 300
+
+  values = [
+    yamlencode({
+      args = [
+        "--kubelet-preferred-address-types=InternalIP",
+        "--kubelet-use-node-status-port",
+      ]
+    })
+  ]
+
+  depends_on = [module.eks]
+}
+
 module "iam" {
   source = "../../modules/iam"
 
@@ -218,5 +239,3 @@ module "rds" {
   allocated_storage         = var.db_allocated_storage
   common_tags               = local.common_tags
 }
-
-

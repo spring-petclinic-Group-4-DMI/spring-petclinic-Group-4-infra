@@ -52,5 +52,5 @@ resource "aws_route53_record" "cert_validation" {
 # Instead, the CNAME records above are written to Route53 and validation
 # completes automatically in the background once NS propagation finishes.
 # The certificate_arn output uses aws_acm_certificate.main.arn directly
-# (available immediately) so the ALB and Ingress can be provisioned without
+# (available immediately) so the ALB can be provisioned without
 # waiting. HTTPS will start working as soon as ACM status changes to ISSUED.
