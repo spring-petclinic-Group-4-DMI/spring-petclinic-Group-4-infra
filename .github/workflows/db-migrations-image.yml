@@ -11,6 +11,7 @@ on:
 permissions:
   contents: write
   id-token: write
+  pull-requests: write
 
 env:
   AWS_REGION: us-east-1
@@ -71,12 +72,24 @@ jobs:
             https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
           sudo chmod +x /usr/local/bin/yq
 
-      - name: Promote migration image tag through GitOps
+      - name: Promote migration image tag through GitOps PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           yq e ".image.tag = strenv(IMAGE_TAG)" -i helm/db-migrations/values-staging.yaml
           git config user.email "ci-bot@github.com"
           git config user.name "CI Bot"
+          BRANCH_NAME="automation/db-migrations-${GITHUB_RUN_ID}"
+          git checkout -b "$BRANCH_NAME"
           git add helm/db-migrations/values-staging.yaml
-          git diff --cached --quiet || \
-            git commit -m "SPC-DB: update db-migrations image tag to $IMAGE_TAG"
-          git push origin staging
+          if git diff --cached --quiet; then
+            echo "No db-migrations image tag change to promote."
+            exit 0
+          fi
+          git commit -m "SPC-DB: update db-migrations image tag to $IMAGE_TAG"
+          git push --set-upstream origin "$BRANCH_NAME"
+          gh pr create \
+            --base staging \
+            --head "$BRANCH_NAME" \
+            --title "SPC-DB: update db-migrations image tag to $IMAGE_TAG" \
+            --body "Promotes the db-migrations image built from ${GITHUB_SHA} to staging."
