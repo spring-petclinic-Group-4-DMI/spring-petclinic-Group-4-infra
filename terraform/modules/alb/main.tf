@@ -86,13 +86,9 @@ resource "aws_lb_listener" "http" {
     redirect {
       port        = "443"
       protocol    = "HTTPS"
-      status_code = "HTTP_301" # permanent redirect
+      status_code = "HTTP_301"
     }
   }
-
-  tags = merge(var.common_tags, {
-    Name = "spc-stg-ue1-alb-listener-http"
-  })
 }
 
 ###############################################################################
@@ -101,25 +97,25 @@ resource "aws_lb_listener" "http" {
 # Traffic is decrypted at this point and forwarded as plain HTTP internally.
 ###############################################################################
 
-resource "aws_lb_listener" "https" {
-  load_balancer_arn = aws_lb.this.arn
-  port              = 443
-  protocol          = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+# resource "aws_lb_listener" "https" {
+#  load_balancer_arn = aws_lb.this.arn
+#  port              = 443
+#  protocol          = "HTTPS"
+#  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
 
-  # acm_certificate_arn comes from whoever manages the ACM cert
-  # (either Cloud/Infra Eng 1 or created in environments/staging/main.tf)
-  certificate_arn = var.acm_certificate_arn
+# acm_certificate_arn comes from whoever manages the ACM cert
+# (either Cloud/Infra Eng 1 or created in environments/staging/main.tf)
+#  certificate_arn = var.acm_certificate_arn
 
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.default.arn
-  }
+#  default_action {
+#    type             = "forward"
+#    target_group_arn = aws_lb_target_group.default.arn
+#  }
 
-  tags = merge(var.common_tags, {
-    Name = "spc-stg-ue1-alb-listener-https"
-  })
-}
+#  tags = merge(var.common_tags, {
+#    Name = "spc-stg-ue1-alb-listener-https"
+#  })
+#}
 
 ###############################################################################
 # 5. LB CONTROLLER — IAM role + policy (IRSA)
