@@ -51,8 +51,11 @@ jobs:
           fi
           git commit -m "SPC-007: update $SERVICE image tag to $IMAGE_TAG"
           git push --set-upstream origin "$BRANCH_NAME"
-          gh pr create \
+          if ! gh pr create \
             --base staging \
             --head "$BRANCH_NAME" \
             --title "SPC-007: update $SERVICE image tag to $IMAGE_TAG" \
-            --body "Promotes the $SERVICE image tag $IMAGE_TAG to staging."
+            --body "Promotes the $SERVICE image tag $IMAGE_TAG to staging."; then
+            echo "::warning::GitHub Actions is not allowed to create pull requests in this repository."
+            echo "::notice::Open this PR manually: https://github.com/${GITHUB_REPOSITORY}/pull/new/${BRANCH_NAME}"
+          fi
