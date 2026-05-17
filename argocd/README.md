@@ -16,6 +16,7 @@ are detected.
 - genai-service
 - admin-server
 - frontend
+- db-migrations
 
 ## Sync Policy
 All applications are configured with:

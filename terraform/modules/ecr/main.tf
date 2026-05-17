@@ -12,6 +12,7 @@ locals {
     "genai-service",
     "admin-server",
     "frontend",
+    "db-migrations",
   ]
 
   repo_names = {

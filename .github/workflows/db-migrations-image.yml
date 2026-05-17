@@ -1,0 +1,82 @@
+name: Build DB Migration Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [staging]
+    paths:
+      - "db/migrations/**"
+      - ".github/workflows/db-migrations-image.yml"
+
+permissions:
+  contents: write
+  id-token: write
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: spring-petclinic/db-migrations
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout staging branch
+        uses: actions/checkout@v4
+        with:
+          ref: staging
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.TF_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Wait for migration ECR repository
+        run: |
+          for i in $(seq 1 60); do
+            if aws ecr describe-repositories \
+              --region "$AWS_REGION" \
+              --repository-names "$ECR_REPOSITORY" >/dev/null 2>&1; then
+              exit 0
+            fi
+            echo "Waiting for ECR repository $ECR_REPOSITORY ($i/60)..."
+            sleep 20
+          done
+          echo "ERROR: ECR repository $ECR_REPOSITORY was not found"
+          exit 1
+
+      - name: Build and push migration image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: migrations-${{ github.sha }}
+        run: |
+          IMAGE_URI="$REGISTRY/$ECR_REPOSITORY"
+          docker build \
+            --tag "$IMAGE_URI:$IMAGE_TAG" \
+            --tag "$IMAGE_URI:latest" \
+            db/migrations
+          docker push "$IMAGE_URI:$IMAGE_TAG"
+          docker push "$IMAGE_URI:latest"
+          echo "IMAGE_TAG=$IMAGE_TAG" >> "$GITHUB_ENV"
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Promote migration image tag through GitOps
+        run: |
+          yq e ".image.tag = strenv(IMAGE_TAG)" -i helm/db-migrations/values-staging.yaml
+          git config user.email "ci-bot@github.com"
+          git config user.name "CI Bot"
+          git add helm/db-migrations/values-staging.yaml
+          git diff --cached --quiet || \
+            git commit -m "SPC-DB: update db-migrations image tag to $IMAGE_TAG"
+          git push origin staging

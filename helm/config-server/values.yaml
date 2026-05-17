@@ -20,3 +20,4 @@ autoscaling:
   targetCPUUtilizationPercentage: 70
 configMap:
   SPRING_PROFILES_ACTIVE: kubernetes
+  BPL_JVM_THREAD_COUNT: "50"

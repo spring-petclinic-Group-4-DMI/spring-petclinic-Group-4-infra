@@ -35,10 +35,12 @@ env:
   TF_VAR_api_gateway_service_name: api-gateway
   TF_VAR_api_gateway_service_port: 8080
   TF_VAR_lb_controller_chart_version: "1.7.1"
+  TF_VAR_metrics_server_chart_version: "3.13.0"
   TF_VAR_prod_alb_name: spc-prod-ue1-alb-external
   TF_VAR_create_prod_records: "false"
   TF_VAR_default_tags: '{}'
   TF_VAR_additional_secret_values: '{}'
+  DB_MIGRATIONS_ECR_REPOSITORY: spring-petclinic/db-migrations
 
 jobs:
   terraform:
@@ -95,7 +97,9 @@ jobs:
       - name: Terraform plan (phase 2 — Kubernetes resources + ALB)
         run: |
           terraform plan -out=tfplan2 \
-            -target=kubernetes_namespace.app
+            -target=kubernetes_namespace.app \
+            -target=helm_release.metrics_server \
+            -target=module.alb
 
       - name: Terraform apply (phase 2 — Kubernetes resources + ALB)
         if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/staging'
@@ -116,6 +120,25 @@ jobs:
             --from-literal=username=${{ secrets.MYSQL_USERNAME }} \
             --from-literal=password=${{ secrets.MYSQL_PASSWORD }} \
             --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Login to Amazon ECR
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/staging'
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build bootstrap database migration image
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/staging'
+        working-directory: ${{ github.workspace }}
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+        run: |
+          IMAGE_URI="$REGISTRY/$DB_MIGRATIONS_ECR_REPOSITORY"
+          docker build \
+            --tag "$IMAGE_URI:bootstrap-${{ github.sha }}" \
+            --tag "$IMAGE_URI:latest" \
+            db/migrations
+          docker push "$IMAGE_URI:bootstrap-${{ github.sha }}"
+          docker push "$IMAGE_URI:latest"
 
   # ── Job 2: Install ArgoCD via reusable workflow ────────────────────────────
   install-argocd:

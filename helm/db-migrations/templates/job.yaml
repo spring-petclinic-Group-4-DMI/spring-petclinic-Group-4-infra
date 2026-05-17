@@ -5,15 +5,19 @@ metadata:
   namespace: {{ .Release.Namespace }}
   annotations:
     argocd.argoproj.io/hook: PreSync
-    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation,HookSucceeded
+    argocd.argoproj.io/sync-wave: "-10"
 spec:
-  backoffLimit: 3
+  backoffLimit: {{ .Values.job.backoffLimit }}
+  activeDeadlineSeconds: {{ .Values.job.activeDeadlineSeconds }}
+  ttlSecondsAfterFinished: {{ .Values.job.ttlSecondsAfterFinished }}
   template:
     spec:
       restartPolicy: OnFailure
       containers:
         - name: flyway
-          image: {{ .Values.flyway.image }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
             - migrate
           env:
@@ -34,9 +38,9 @@ spec:
             - name: FLYWAY_LOCATIONS
               value: "filesystem:/flyway/sql"
             - name: FLYWAY_BASELINE_ON_MIGRATE
-              value: "true"
+              value: {{ .Values.flyway.baselineOnMigrate | quote }}
             - name: FLYWAY_VALIDATE_ON_MIGRATE
-              value: "false"
+              value: {{ .Values.flyway.validateOnMigrate | quote }}
           resources:
             requests:
               cpu: {{ .Values.resources.requests.cpu }}
@@ -44,10 +48,3 @@ spec:
             limits:
               cpu: {{ .Values.resources.limits.cpu }}
               memory: {{ .Values.resources.limits.memory }}
-          volumeMounts:
-            - name: sql-files
-              mountPath: /flyway/sql
-      volumes:
-        - name: sql-files
-          configMap:
-            name: flyway-sql

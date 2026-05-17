@@ -1,0 +1,4 @@
+name: api-gateway
+serviceName: api-gateway
+servicePort: 8080
+targetGroupArn: ""

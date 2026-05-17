@@ -1,0 +1,6 @@
+apiVersion: v2
+name: target-group-binding
+description: Bind the Terraform-managed ALB target group to the api-gateway service.
+type: application
+version: 0.1.0
+appVersion: "1.0"

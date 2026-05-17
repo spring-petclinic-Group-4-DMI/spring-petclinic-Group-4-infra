@@ -70,10 +70,51 @@ jobs:
               --wait --timeout 10m
           fi
 
-      - name: Apply AppProject and Applications
+      - name: Apply AppProject and Applications in dependency order
         run: |
+          wait_app() {
+            APP_NAME="$1"
+            echo "Waiting for $APP_NAME to become Synced and Healthy..."
+            for i in $(seq 1 60); do
+              SYNC=$(kubectl get application "$APP_NAME" -n argocd \
+                -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
+              HEALTH=$(kubectl get application "$APP_NAME" -n argocd \
+                -o jsonpath='{.status.health.status}' 2>/dev/null || echo "Unknown")
+              echo "Attempt $i/60 — $APP_NAME sync=$SYNC health=$HEALTH"
+              if [[ "$SYNC" == "Synced" && "$HEALTH" == "Healthy" ]]; then
+                return 0
+              fi
+              sleep 10
+            done
+            kubectl describe application "$APP_NAME" -n argocd || true
+            return 1
+          }
+
           kubectl apply -f argocd/projects/
-          kubectl apply -f argocd/applications/
+
+          kubectl apply -f argocd/applications/db-migrations.yaml
+          wait_app db-migrations
+
+          kubectl apply \
+            -f argocd/applications/config-server.yaml \
+            -f argocd/applications/discovery-server.yaml
+          wait_app config-server
+          wait_app discovery-server
+
+          kubectl apply \
+            -f argocd/applications/customers-service.yaml \
+            -f argocd/applications/vets-service.yaml \
+            -f argocd/applications/visits-service.yaml \
+            -f argocd/applications/genai-service.yaml
+          wait_app customers-service
+          wait_app vets-service
+          wait_app visits-service
+          wait_app genai-service
+
+          kubectl apply \
+            -f argocd/applications/api-gateway.yaml \
+            -f argocd/applications/admin-server.yaml \
+            -f argocd/applications/frontend.yaml
 
       - name: Print ArgoCD UI URL
         run: |
