@@ -7,6 +7,7 @@ on:
 permissions:
   contents: write
   id-token: write
+  pull-requests: write
 
 jobs:
   update-tag:
@@ -33,14 +34,25 @@ jobs:
         run: |
           yq e ".image.tag = \"$IMAGE_TAG\"" -i "helm/$SERVICE/values-staging.yaml"
 
-      - name: Commit and push to staging
+      - name: Commit and open staging PR
         env:
           SERVICE: ${{ github.event.client_payload.service }}
           IMAGE_TAG: ${{ github.event.client_payload.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.email "ci-bot@github.com"
           git config user.name "CI Bot"
+          BRANCH_NAME="automation/${SERVICE}-${GITHUB_RUN_ID}"
+          git checkout -b "$BRANCH_NAME"
           git add "helm/$SERVICE/values-staging.yaml"
-          git diff --cached --quiet || \
-            git commit -m "SPC-007: update $SERVICE image tag to $IMAGE_TAG"
-          git push origin staging
+          if git diff --cached --quiet; then
+            echo "No $SERVICE image tag change to promote."
+            exit 0
+          fi
+          git commit -m "SPC-007: update $SERVICE image tag to $IMAGE_TAG"
+          git push --set-upstream origin "$BRANCH_NAME"
+          gh pr create \
+            --base staging \
+            --head "$BRANCH_NAME" \
+            --title "SPC-007: update $SERVICE image tag to $IMAGE_TAG" \
+            --body "Promotes the $SERVICE image tag $IMAGE_TAG to staging."
