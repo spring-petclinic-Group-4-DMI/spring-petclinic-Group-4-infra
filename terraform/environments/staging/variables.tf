@@ -170,6 +170,12 @@ variable "domain_name" {
   type        = string
 }
 
+variable "enable_https" {
+  description = "Whether to create the ALB HTTPS listener and redirect HTTP to HTTPS. Keep false until the domain and ACM certificate are ready."
+  type        = bool
+  default     = false
+}
+
 # ── EKS cluster name — needed by ALB module ─────────────────────────────────
 variable "cluster_name" {
   description = "EKS cluster name — must match what the EKS module creates"

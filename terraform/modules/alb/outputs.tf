@@ -22,8 +22,8 @@ output "alb_zone_id" {
 }
 
 output "https_listener_arn" {
-  description = "ARN of the HTTPS (port 443) listener. Useful if additional routing rules need to be added later."
-  value       = aws_lb_listener.https.arn
+  description = "ARN of the HTTPS (port 443) listener when HTTPS is enabled. Null while using HTTP-only ALB access."
+  value       = try(aws_lb_listener.https[0].arn, null)
 }
 
 output "acm_certificate_arn" {

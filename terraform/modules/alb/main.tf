@@ -70,8 +70,9 @@ resource "aws_lb_target_group" "default" {
 
 ###############################################################################
 # 3. HTTP LISTENER — Port 80
-# Does not serve any content.
-# Its only job is to redirect every HTTP request to HTTPS (301 redirect).
+# While enable_https=false, this forwards directly to the application so the
+# ALB DNS name can be used without a domain. Once the ACM certificate is ready,
+# enable_https=true changes this listener back to an HTTP -> HTTPS redirect.
 ###############################################################################
 
 resource "aws_lb_listener" "http" {
@@ -79,24 +80,37 @@ resource "aws_lb_listener" "http" {
   port              = 80
   protocol          = "HTTP"
 
-  default_action {
-    type = "redirect"
+  dynamic "default_action" {
+    for_each = var.enable_https ? [1] : []
+    content {
+      type = "redirect"
 
-    redirect {
-      port        = "443"
-      protocol    = "HTTPS"
-      status_code = "HTTP_301"
+      redirect {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+  }
+
+  dynamic "default_action" {
+    for_each = var.enable_https ? [] : [1]
+    content {
+      type             = "forward"
+      target_group_arn = aws_lb_target_group.default.arn
     }
   }
 }
 
 ###############################################################################
 # 4. HTTPS LISTENER — Port 443
-# SSL terminates here using the ACM certificate.
+# SSL terminates here using the ACM certificate when enable_https=true.
 # Traffic is decrypted at this point and forwarded as plain HTTP internally.
 ###############################################################################
 
 resource "aws_lb_listener" "https" {
+  count = var.enable_https ? 1 : 0
+
   load_balancer_arn = aws_lb.this.arn
   port              = 443
   protocol          = "HTTPS"
@@ -318,6 +332,6 @@ resource "helm_release" "api_gateway_target_group_binding" {
 
   depends_on = [
     helm_release.aws_lb_controller,
-    aws_lb_listener.https,
+    aws_lb_listener.http,
   ]
 }

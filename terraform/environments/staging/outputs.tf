@@ -34,8 +34,8 @@ output "certificate_arn" {
 }
 
 output "staging_url" {
-  description = "The staging HTTPS URL for the Spring PetClinic application."
-  value       = "https://staging.${var.domain_name}"
+  description = "The staging URL for the Spring PetClinic application."
+  value       = var.enable_https ? "https://staging.${var.domain_name}" : "http://${module.alb.alb_dns_name}"
 }
 output "karpenter_controller_role_arn" {
   description = "Karpenter controller IAM role ARN — goes into Helm values"
@@ -64,5 +64,4 @@ output "certificate_status" {
   description = "ACM certificate status."
   value       = module.dns.certificate_status
 }
-
 

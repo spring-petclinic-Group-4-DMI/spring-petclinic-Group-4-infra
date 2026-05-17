@@ -61,6 +61,12 @@ variable "acm_certificate_arn" {
   type        = string
 }
 
+variable "enable_https" {
+  description = "Whether to create the HTTPS listener and redirect HTTP to HTTPS. Keep false until the domain and ACM certificate are ready."
+  type        = bool
+  default     = false
+}
+
 variable "domain_name" {
   description = "Base domain for the app e.g. petclinic.example.com. Kept for compatibility with the staging module interface; DNS alias records are managed in the root module."
   type        = string
