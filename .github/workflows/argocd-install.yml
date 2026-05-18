@@ -1,3 +1,4 @@
+# .github/workflows/argocd-install.yml
 name: Install ArgoCD
 
 on:
@@ -131,3 +132,5 @@ jobs:
         run: |
           kubectl get svc argocd-server -n argocd \
             -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+
+# Trigger the ArgoCD
