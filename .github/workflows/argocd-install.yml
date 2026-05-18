@@ -1,3 +1,4 @@
+# .github/workflows/argocd-install.yml
 name: Install ArgoCD
 
 on:
@@ -92,6 +93,18 @@ jobs:
 
           kubectl apply -f argocd/projects/
 
+          # The frontend is not part of the deployed microservices for this project.
+          # Remove any previous frontend ArgoCD application/resources so it cannot
+          # keep self-healing an ImagePullBackOff pod back into the namespace.
+          kubectl delete application frontend -n argocd --ignore-not-found --wait=false
+          kubectl delete \
+            deployment/frontend \
+            service/frontend \
+            hpa/frontend \
+            configmap/frontend-config \
+            -n petclinic-staging \
+            --ignore-not-found
+
           kubectl apply -f argocd/applications/db-migrations.yaml
           wait_app db-migrations
 
@@ -113,10 +126,11 @@ jobs:
 
           kubectl apply \
             -f argocd/applications/api-gateway.yaml \
-            -f argocd/applications/admin-server.yaml \
-            -f argocd/applications/frontend.yaml
+            -f argocd/applications/admin-server.yaml
 
       - name: Print ArgoCD UI URL
         run: |
           kubectl get svc argocd-server -n argocd \
             -o jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+
+# Trigger the ArgoCD

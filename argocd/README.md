@@ -1,8 +1,8 @@
 # ArgoCD Applications
 
 ## Overview
-This directory contains ArgoCD Application manifests for all 9 
-PetClinic microservices. Each application points to its corresponding 
+This directory contains ArgoCD Application manifests for the deployed
+PetClinic services. Each application points to its corresponding
 Helm chart in the /helm folder and syncs automatically when changes 
 are detected.
 
@@ -15,7 +15,6 @@ are detected.
 - visits-service
 - genai-service
 - admin-server
-- frontend
 - db-migrations
 
 ## Sync Policy
