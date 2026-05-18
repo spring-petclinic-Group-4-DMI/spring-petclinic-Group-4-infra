@@ -1,6 +1,16 @@
 name: Update Helm Image Tag
 
 on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Helm chart/service name to update"
+        required: true
+        type: string
+      tag:
+        description: "Image tag to write into values-staging.yaml"
+        required: true
+        type: string
   repository_dispatch:
     types: [update-image-tag]
 
@@ -11,7 +21,7 @@ permissions:
 
 jobs:
   update-tag:
-    name: Update ${{ github.event.client_payload.service }} image tag
+    name: Update image tag
     runs-on: ubuntu-latest
 
     steps:
@@ -29,15 +39,15 @@ jobs:
 
       - name: Update image tag in values-staging.yaml
         env:
-          SERVICE: ${{ github.event.client_payload.service }}
-          IMAGE_TAG: ${{ github.event.client_payload.tag }}
+          SERVICE: ${{ github.event_name == 'workflow_dispatch' && inputs.service || github.event.client_payload.service }}
+          IMAGE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.client_payload.tag }}
         run: |
           yq e ".image.tag = \"$IMAGE_TAG\"" -i "helm/$SERVICE/values-staging.yaml"
 
       - name: Commit and open staging PR
         env:
-          SERVICE: ${{ github.event.client_payload.service }}
-          IMAGE_TAG: ${{ github.event.client_payload.tag }}
+          SERVICE: ${{ github.event_name == 'workflow_dispatch' && inputs.service || github.event.client_payload.service }}
+          IMAGE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.client_payload.tag }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.email "ci-bot@github.com"

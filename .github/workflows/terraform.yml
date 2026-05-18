@@ -8,6 +8,10 @@ on:
     paths:
       - "terraform/**"
       - ".github/workflows/terraform.yml"
+      - ".github/workflows/argocd-install.yml"
+      - "argocd/**"
+      - "helm/**"
+      - "db/migrations/**"
 
 permissions:
   contents: read
