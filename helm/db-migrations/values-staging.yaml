@@ -1,5 +1,4 @@
 image:
-  tag: "latest"
-
+  tag: "migrations-7805a4ff9f40fe6733802923f06d11979705fc1f"
 flyway:
   url: "jdbc:mysql://spc-staging-ue1-rds-db.co16s6q6g4t2.us-east-1.rds.amazonaws.com:3306/petclinic?useSSL=false&allowPublicKeyRetrieval=true"
