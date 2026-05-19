@@ -260,7 +260,7 @@ locals {
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload",
           "ecr:PutImage",
-          "ecr:DescribeImages", # lets workflows check whether a tag already exists
+          "ecr:DescribeImages", # lets workflows check whether a tag already exist
         ]
         Resource = "arn:aws:ecr:${var.aws_region}:*:repository/petclinic-dev/*"
       },
