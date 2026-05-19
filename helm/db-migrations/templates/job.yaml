@@ -23,6 +23,9 @@ spec:
         app.kubernetes.io/part-of: petclinic
     spec:
       restartPolicy: OnFailure
+      # If rds-credentials Secret doesn't exist when the pod is scheduled,
+      # kubelet keeps retrying until it appears (every ~10s). The chart's
+      # own ExternalSecret should produce it within a few seconds of sync.
       containers:
         - name: flyway
           image: "{{ .Values.image.registry }}/{{ .Values.image.envPrefix }}/{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"
