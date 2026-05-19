@@ -3,7 +3,7 @@
 
 image:
   service: config-server
-  tag: ""
+  tag: latest
 
 containerPort: 8888
 service:
