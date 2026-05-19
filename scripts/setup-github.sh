@@ -201,14 +201,7 @@ set_variable AWS_ACCOUNT_ID "$APP_FULL" "$AWS_ACCOUNT_ID_VAR"
 set_variable AWS_REGION     "$APP_FULL" "$AWS_REGION_VAR"
 set_variable PLATFORM_REPO  "$APP_FULL" "$INFRA_FULL"
 
-# ── 6. dev Environment in each repo ─────────────────────────────────────────
-log "Creating 'dev' Environment"
-
-gh api -X PUT "/repos/${INFRA_FULL}/environments/dev" --silent
-ok "$INFRA_FULL — environment 'dev' present"
-
-gh api -X PUT "/repos/${APP_FULL}/environments/dev" --silent
-ok "$APP_FULL — environment 'dev' present"
+# ── 6. (was: dev Environment — now removed, workflows don't reference one) ─
 
 # ── 7. Infra repo workflow permissions ──────────────────────────────────────
 log "Workflow permissions on $INFRA_FULL"

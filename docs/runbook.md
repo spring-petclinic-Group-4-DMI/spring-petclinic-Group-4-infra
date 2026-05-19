@@ -199,7 +199,7 @@ Non-secret terraform inputs (`github_org`, `domain_name`, `create_github_oidc_pr
 
 Settings → Actions → General → Workflow permissions → **enable** "Allow GitHub Actions to create and approve pull requests".
 
-**Both repos:** Settings → Environments → New environment named `dev` (no protection rules needed for solo dev; add reviewers if you want a human gate on apply).
+**GitHub Environments:** Workflows do not reference any GitHub Environment — they read repo-level secrets directly. To add approval-gating later, add `environment: <name>` to the relevant workflow job AND create that Environment in repo Settings → Environments.
 
 ### 2.7 — Create the Grafana admin secret
 
