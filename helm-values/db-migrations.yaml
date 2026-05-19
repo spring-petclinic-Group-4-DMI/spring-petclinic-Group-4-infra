@@ -2,7 +2,7 @@
 # CI (db-migrations-image.yml in the app repo) writes image.tag here.
 
 image:
-  tag: ""
+  tag: "88ca9b2"
 
 # Optional: bump backoff if RDS is slow to accept connections
 flyway:
