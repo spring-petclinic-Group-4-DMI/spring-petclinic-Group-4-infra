@@ -95,16 +95,17 @@ jobs:
       run:
         working-directory: ${{ env.TF_WORKDIR }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Guard against empty OPENAI_API_KEY
         # An empty value would diff against the real Secrets Manager value at
         # plan time, producing a misleading "will replace" entry.
+        # Must run AFTER checkout so the working-directory exists.
         run: |
           if [[ -z "${{ secrets.OPENAI_API_KEY }}" ]]; then
             echo "::error::OPENAI_API_KEY secret is not set. Set it in repo Settings → Secrets and variables → Actions."
             exit 1
           fi
-
-      - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -151,9 +152,12 @@ jobs:
       run:
         working-directory: ${{ env.TF_WORKDIR }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Guard against empty OPENAI_API_KEY
         # If the secret is unset, GH substitutes "" which would silently
         # overwrite the real value in AWS Secrets Manager. Fail loudly.
+        # Must run AFTER checkout so the working-directory exists.
         run: |
           if [[ -z "${{ secrets.OPENAI_API_KEY }}" ]]; then
             echo "::error::OPENAI_API_KEY secret is not set. Refusing to apply (would clobber AWS Secrets Manager value with empty string)."
@@ -162,8 +166,6 @@ jobs:
           echo "OPENAI_API_KEY present (length: ${#OPENAI})"
         env:
           OPENAI: ${{ secrets.OPENAI_API_KEY }}
-
-      - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
         with:
