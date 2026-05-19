@@ -238,9 +238,15 @@ locals {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "ECRAuth"
-        Effect   = "Allow"
-        Action   = ["ecr:GetAuthorizationToken"]
+        # Registry-level reads: GetAuthorizationToken for docker login,
+        # DescribeRepositories so workflows can verify a repo exists before push
+        # (the db-migrations-image.yml wait loop uses this).
+        Sid    = "ECRRegistryRead"
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken",
+          "ecr:DescribeRepositories",
+        ]
         Resource = "*"
       },
       {
@@ -254,6 +260,7 @@ locals {
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload",
           "ecr:PutImage",
+          "ecr:DescribeImages", # lets workflows check whether a tag already exists
         ]
         Resource = "arn:aws:ecr:${var.aws_region}:*:repository/petclinic-dev/*"
       },

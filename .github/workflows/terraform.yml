@@ -140,12 +140,13 @@ jobs:
             ${{ env.TF_WORKDIR }}/tfplan.txt
           retention-days: 14
 
-  # ── Apply (push to main → always; dispatch → only when action=apply) ────────
+  # ── Apply (manual dispatch only — auto-apply on push disabled) ──────────────
+  # Push to main triggers `plan` only (sanity check). Apply must be explicit
+  # via workflow_dispatch with action=apply, to avoid the access-entry diff
+  # caused by different IAM principals between local + CI apply.
   apply:
     needs: plan
-    if: |
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply'
     name: Apply
     runs-on: ubuntu-latest
     defaults:
