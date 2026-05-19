@@ -8,3 +8,4 @@ image:
 flyway:
   connectRetries: 30
   connectRetriesInterval: 5
+# Finished tagging
