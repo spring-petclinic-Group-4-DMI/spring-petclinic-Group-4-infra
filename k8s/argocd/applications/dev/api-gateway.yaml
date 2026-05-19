@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: api-gateway
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # Sync wave 3 — edge services come last, after core domain services are up
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://github.com/spring-petclinic-Group-4-DMI/spring-petclinic-Group-4-infra.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://github.com/spring-petclinic-Group-4-DMI/spring-petclinic-Group-4-infra.git
+      targetRevision: main
+      path: helm/petclinic-service
+      helm:
+        releaseName: api-gateway
+        valueFiles:
+          - $values/helm-values/api-gateway.yaml
+          - $values/helm-values/dev.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: petclinic-dev
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 2m

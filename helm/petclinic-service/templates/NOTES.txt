@@ -1,0 +1,13 @@
+Deployed: {{ include "petclinic.serviceName" . }} ({{ .Values.global.environment }})
+Image:    {{ include "petclinic.image" . }}
+Port:     {{ include "petclinic.servicePort" . }}
+
+Check rollout:
+  kubectl rollout status deployment/{{ include "petclinic.serviceName" . }} -n {{ .Release.Namespace }}
+
+Tail logs:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "petclinic.serviceName" . }} -f
+{{- if .Values.ingress.enabled }}
+
+Ingress: {{ .Values.ingress.host | default "(no host configured)" }} → {{ include "petclinic.serviceName" . }}:{{ include "petclinic.servicePort" . }}
+{{- end }}

@@ -1,0 +1,17 @@
+{{- if .Values.service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "petclinic.serviceName" . }}
+  labels:
+    {{- include "petclinic.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ include "petclinic.servicePort" . }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "petclinic.selectorLabels" . | nindent 4 }}
+{{- end }}

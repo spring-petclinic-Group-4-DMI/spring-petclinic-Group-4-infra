@@ -1,0 +1,10 @@
+# db-migrations Flyway Job — runs once per sync before any petclinic service.
+# CI (db-migrations-image.yml in the app repo) writes image.tag here.
+
+image:
+  tag: ""
+
+# Optional: bump backoff if RDS is slow to accept connections
+flyway:
+  connectRetries: 30
+  connectRetriesInterval: 5

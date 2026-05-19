@@ -1,0 +1,21 @@
+# Per-environment overrides for the dev cluster.
+# Merged after helm-values/{service}.yaml by ArgoCD at sync time.
+#
+# Keep this file lean — only set values that genuinely differ from chart defaults.
+
+image:
+  envPrefix: petclinic-dev   # → 428101261622.dkr.ecr.us-east-2.amazonaws.com/petclinic-dev/{service}:{tag}
+
+replicaCount: 1
+
+# Echoed into pod labels (petclinic.io/environment) and into ExternalSecret remoteRef paths
+# (petclinic/dev/rds-credentials, petclinic/dev/openai-api-key).
+global:
+  environment: dev
+
+# Dev is single-AZ and free-tier sized. Leave autoscaling/PDB off here;
+# turn them on at a per-service level if you actually need them.
+autoscaling:
+  enabled: false
+pdb:
+  enabled: false

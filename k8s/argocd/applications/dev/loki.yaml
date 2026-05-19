@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # Wave -9 — after kube-prometheus-stack (-10) is up so Grafana exists to
+    # consume Loki as a datasource. Petclinic services don't depend on Loki.
+    argocd.argoproj.io/sync-wave: "-9"
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: loki-stack
+      # Bump via https://github.com/grafana/helm-charts/releases?q=loki-stack
+      targetRevision: 2.10.2
+      helm:
+        releaseName: loki
+        valueFiles:
+          - $values/helm-values/loki.yaml
+    - repoURL: https://github.com/spring-petclinic-Group-4-DMI/spring-petclinic-Group-4-infra.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m

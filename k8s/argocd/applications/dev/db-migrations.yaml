@@ -1,0 +1,47 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: db-migrations
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # Wave -5 — after observability (wave -10) and ExternalSecrets store (-11),
+    # before config-server (wave 0). Schema must exist before any service that
+    # talks to MySQL starts up.
+    argocd.argoproj.io/sync-wave: "-5"
+spec:
+  project: default
+
+  sources:
+    - repoURL: https://github.com/spring-petclinic-Group-4-DMI/spring-petclinic-Group-4-infra.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://github.com/spring-petclinic-Group-4-DMI/spring-petclinic-Group-4-infra.git
+      targetRevision: main
+      path: helm/db-migrations
+      helm:
+        releaseName: db-migrations
+        valueFiles:
+          - $values/helm-values/db-migrations.yaml
+          - $values/helm-values/dev.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: petclinic-dev   # same namespace as rds-credentials Secret
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      # Jobs are immutable once finished — force replace on re-sync.
+      - Replace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m

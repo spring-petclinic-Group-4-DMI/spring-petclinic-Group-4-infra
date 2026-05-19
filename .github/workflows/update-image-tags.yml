@@ -1,0 +1,133 @@
+# update-image-tags.yml
+#
+# Receives a repository_dispatch event from the application repo (spring-petclinic-
+# microservices) after a successful build-push.yml run. Iterates the services list
+# from the payload, writes the new image tag into helm-values/{service}.yaml, and
+# opens a PR against main. ArgoCD picks up the merge and syncs the cluster.
+#
+# Triggers:
+#   repository_dispatch (event-type: app-image-built) — fired by the app repo
+#   workflow_dispatch — manual single-service updates (rollbacks, hotfixes)
+#
+# Required GitHub Secrets (default GITHUB_TOKEN is sufficient):
+#   GITHUB_TOKEN — auto-provided; needs contents:write + pull-requests:write
+#
+# Repository setting required:
+#   Settings → Actions → General → Workflow permissions → "Allow GitHub Actions to
+#   create and approve pull requests" must be ON.
+
+name: Update Helm image tags
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Single service name (e.g. customers-service)"
+        required: true
+        type: string
+      tag:
+        description: "Image tag to write (commit SHA, 7 chars)"
+        required: true
+        type: string
+  repository_dispatch:
+    types: [app-image-built]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-tags:
+    name: Edit helm-values and open PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Normalise payload (workflow_dispatch vs repository_dispatch)
+        id: payload
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            SERVICES="${{ inputs.service }}"
+            TAG="${{ inputs.tag }}"
+          else
+            # repository_dispatch payload from app build-push.yml:
+            #   client_payload.services — space-separated list
+            #   client_payload.sha      — 7-char commit SHA
+            SERVICES="${{ github.event.client_payload.services }}"
+            TAG="${{ github.event.client_payload.sha }}"
+          fi
+
+          if [[ -z "$SERVICES" || -z "$TAG" ]]; then
+            echo "::error::Empty payload — services='$SERVICES' tag='$TAG'"
+            exit 1
+          fi
+
+          echo "services=$SERVICES" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG"           >> "$GITHUB_OUTPUT"
+          echo "Updating: $SERVICES → $TAG"
+
+      - name: Update image tag in helm-values/{service}.yaml
+        env:
+          SERVICES: ${{ steps.payload.outputs.services }}
+          TAG:      ${{ steps.payload.outputs.tag }}
+        run: |
+          set -euo pipefail
+          for service in $SERVICES; do
+            FILE="helm-values/${service}.yaml"
+            if [[ ! -f "$FILE" ]]; then
+              echo "::warning::$FILE missing — creating it with image stanza"
+              mkdir -p helm-values
+              cat > "$FILE" <<EOF
+          # helm-values for ${service}
+          image:
+            tag: "${TAG}"
+          EOF
+            else
+              yq e ".image.tag = \"${TAG}\"" -i "$FILE"
+            fi
+            echo "Updated: $FILE → image.tag=${TAG}"
+          done
+
+      - name: Commit and open PR
+        env:
+          SERVICES: ${{ steps.payload.outputs.services }}
+          TAG:      ${{ steps.payload.outputs.tag }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git config user.email "ci-bot@users.noreply.github.com"
+          git config user.name  "ci-bot"
+
+          BRANCH="automation/image-tags-${TAG}-${GITHUB_RUN_ID}"
+          git checkout -b "$BRANCH"
+          git add helm-values/
+
+          if git diff --cached --quiet; then
+            echo "No effective changes — nothing to PR."
+            exit 0
+          fi
+
+          # Compact, deterministic commit subject.
+          SERVICES_TRIMMED=$(echo "$SERVICES" | tr ' ' ',' )
+          git commit -m "ci: bump ${SERVICES_TRIMMED} → ${TAG}"
+          git push --set-upstream origin "$BRANCH"
+
+          if ! gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "ci: bump image tags → ${TAG}" \
+            --body  "Automated bump from app build ${TAG}.\n\nServices: ${SERVICES}\n\nMerge to trigger ArgoCD dev sync."; then
+            echo "::warning::Could not auto-create PR. Open it manually:"
+            echo "::notice::https://github.com/${GITHUB_REPOSITORY}/pull/new/${BRANCH}"
+          fi

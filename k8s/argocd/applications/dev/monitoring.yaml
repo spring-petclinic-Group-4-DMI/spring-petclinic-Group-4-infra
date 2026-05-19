@@ -1,0 +1,59 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # Sync wave -10 — installs before any petclinic service so dashboards
+    # exist when services come up. Petclinic services don't *require* monitoring
+    # to start, but having it ready first means we don't miss startup metrics.
+    argocd.argoproj.io/sync-wave: "-10"
+spec:
+  project: default
+
+  # Multi-source: upstream community chart + our values file.
+  sources:
+    - repoURL: https://prometheus-community.github.io/helm-charts
+      chart: kube-prometheus-stack
+      # Pin to a specific version. Bump intentionally. Browse releases at:
+      # https://github.com/prometheus-community/helm-charts/releases?q=kube-prometheus-stack
+      targetRevision: 65.3.1
+      helm:
+        releaseName: monitoring
+        valueFiles:
+          - $values/helm-values/monitoring.yaml
+    - repoURL: https://github.com/spring-petclinic-Group-4-DMI/spring-petclinic-Group-4-infra.git
+      targetRevision: main
+      ref: values
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      # The CRDs (Prometheus, ServiceMonitor, etc.) are large — bypass
+      # the kubectl client-side annotation limit.
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 15s
+        factor: 2
+        maxDuration: 5m
+
+  # The chart's CRDs (~14 of them) trigger out-of-sync warnings on subsequent
+  # syncs because ArgoCD computes a diff against last-applied state and the
+  # operator owns them after install. Ignore that drift.
+  ignoreDifferences:
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      jsonPointers:
+        - /status

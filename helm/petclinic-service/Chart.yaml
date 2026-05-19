@@ -1,0 +1,13 @@
+apiVersion: v2
+name: petclinic-service
+description: Generic Helm chart for all 8 Spring Petclinic microservices.
+type: application
+version: 0.1.0
+appVersion: "4.0.1"
+home: https://github.com/spring-petclinic/spring-petclinic-microservices
+keywords:
+  - spring-boot
+  - microservices
+  - petclinic
+maintainers:
+  - name: petclinic-platform team

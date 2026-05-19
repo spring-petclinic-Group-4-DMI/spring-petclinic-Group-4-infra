@@ -1,0 +1,66 @@
+# argo-cd Helm chart values
+# Chart: https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd
+#
+# Sized for the dev cluster (2× t4g.small Graviton nodes). The argocd-install.yml
+# workflow runs `helm upgrade --install argocd argo/argo-cd -f this-file`.
+#
+# Access pattern:
+#   kubectl port-forward svc/argocd-server -n argocd 8443:443
+#   then https://localhost:8443
+#
+# To switch to a LoadBalancer-fronted UI, change server.service.type to
+# LoadBalancer and add the aws-load-balancer-controller annotations under
+# server.service.annotations.
+
+# Disable Dex SSO — use the built-in admin user. Retrieve the password with:
+#   kubectl -n argocd get secret argocd-initial-admin-secret \
+#     -o jsonpath="{.data.password}" | base64 -d
+dex:
+  enabled: false
+
+# ── ArgoCD components ──────────────────────────────────────────────────────
+# Sized down from chart defaults so two Graviton small nodes can host ArgoCD
+# alongside the 8 petclinic services + Karpenter.
+
+server:
+  service:
+    type: ClusterIP
+
+  # NLB/ALB in front of ArgoCD would handle TLS; the server speaks plain HTTP
+  # internally to avoid duplicated certificate handling.
+  extraArgs:
+    - --insecure
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+controller:
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+repoServer:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+applicationSet:
+  enabled: false   # not used; turning it off frees ~150Mi
+
+notifications:
+  enabled: false   # set true and configure later if you want Slack/email events
+
+# Pin the server param too so the --insecure flag survives a config reload.
+configs:
+  params:
+    server.insecure: true

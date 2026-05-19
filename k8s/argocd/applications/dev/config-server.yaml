@@ -1,0 +1,46 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: config-server
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # Sync wave 0 — must be Synced+Healthy before anything else
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+
+  # Multi-source: one ref-only source for the values files, one chart source.
+  # $values resolves to the ref source so we can reference paths outside the
+  # chart directory without using ".." escapes (which ArgoCD blocks).
+  sources:
+    - repoURL: https://github.com/spring-petclinic-Group-4-DMI/spring-petclinic-Group-4-infra.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://github.com/spring-petclinic-Group-4-DMI/spring-petclinic-Group-4-infra.git
+      targetRevision: main
+      path: helm/petclinic-service
+      helm:
+        releaseName: config-server
+        valueFiles:
+          - $values/helm-values/config-server.yaml
+          - $values/helm-values/dev.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: petclinic-dev
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 2m

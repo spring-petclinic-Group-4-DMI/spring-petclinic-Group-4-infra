@@ -1,0 +1,16 @@
+# Config Server — starts first, no dependencies.
+# CI writes image.tag here.
+
+image:
+  service: config-server
+  tag: ""
+
+containerPort: 8888
+service:
+  port: 8888
+
+springProfiles:
+  - docker
+
+# No init containers — this is the upstream dependency for everyone else.
+# No mysql, no external secrets.

@@ -1,0 +1,114 @@
+# kube-prometheus-stack values
+# Chart: https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack
+#
+# Bundles: Prometheus + Grafana + Alertmanager + node-exporter + kube-state-metrics +
+# prometheus-operator. Sized down aggressively for the dev cluster
+# (2× t4g.small Graviton nodes — 4 vCPU / 4 GiB total across the cluster).
+#
+# Access pattern after install:
+#   kubectl port-forward -n monitoring svc/monitoring-grafana 3000:80
+#   then http://localhost:3000  (admin / value of grafana.adminPassword below)
+#
+#   kubectl port-forward -n monitoring svc/monitoring-kube-prometheus-prometheus 9090
+#   then http://localhost:9090
+
+# ── Prometheus ──────────────────────────────────────────────────────────────
+prometheus:
+  prometheusSpec:
+    retention: 7d                  # short retention to fit on 10Gi
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+
+    # Persistent storage via EBS CSI driver (already installed by the eks module)
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp2
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests:
+              storage: 10Gi
+
+    # Discover ServiceMonitors / PodMonitors across all namespaces, not just
+    # the chart's release namespace. Lets us add scrape rules later from
+    # petclinic-dev without re-templating.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+# ── Grafana ─────────────────────────────────────────────────────────────────
+grafana:
+  enabled: true
+
+  # Admin credentials read from a K8s Secret (NOT hardcoded). Create it once:
+  #
+  #   kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+  #   kubectl -n monitoring create secret generic grafana-admin \
+  #     --from-literal=admin-user=admin \
+  #     --from-literal=admin-password="$(openssl rand -base64 24)"
+  #
+  # Retrieve later with:
+  #   kubectl -n monitoring get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d
+  admin:
+    existingSecret: grafana-admin
+    userKey: admin-user
+    passwordKey: admin-password
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  service:
+    type: ClusterIP
+  # Pre-load the standard K8s dashboards (cluster, nodes, pods, namespaces).
+  defaultDashboardsEnabled: true
+  # Disable persistence for now — config + dashboards live in ConfigMaps,
+  # recreated on pod restart. Add a PVC if you want users to persist
+  # manually-edited dashboards.
+  persistence:
+    enabled: false
+
+  # Wire Loki (log search) and Zipkin (distributed traces) into Grafana.
+  # Both live in the same namespace so service-name DNS works.
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki.monitoring.svc.cluster.local:3100
+      isDefault: false
+    - name: Zipkin
+      type: zipkin
+      access: proxy
+      url: http://zipkin.monitoring.svc.cluster.local:9411
+      isDefault: false
+
+# ── Alertmanager — off until you wire up a notification channel ─────────────
+alertmanager:
+  enabled: false
+
+# ── Exporters ───────────────────────────────────────────────────────────────
+nodeExporter:
+  enabled: true
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 30m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+# ── Prometheus Operator (manages CRDs + reconciles ServiceMonitors) ─────────
+prometheusOperator:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi

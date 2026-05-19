@@ -1,0 +1,132 @@
+# Defaults for the petclinic-service chart.
+#
+# Three layers of values are merged at install/sync time, in increasing priority:
+#   1. This file (chart defaults)
+#   2. helm-values/{service}.yaml — per-service overrides (image.service, port, secrets, ...)
+#   3. helm-values/{env}.yaml      — per-env overrides (replicaCount, image.envPrefix, ...)
+#
+# CI writes ONLY image.tag in helm-values/{service}.yaml.
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Image is assembled as: {registry}/{envPrefix}/{service}:{tag}
+image:
+  registry: "428101261622.dkr.ecr.us-east-2.amazonaws.com"
+  envPrefix: "petclinic-dev"   # overridden in helm-values/dev.yaml
+  service: ""                   # REQUIRED in helm-values/{service}.yaml
+  tag: ""                       # CI writes here
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+# Spring Boot profiles. "mysql" is added automatically when mysql.enabled is true.
+springProfiles:
+  - docker
+
+mysql:
+  enabled: false
+
+# Extra static env vars, e.g.:
+#   env:
+#     - name: SPRING_CLOUD_CONFIG_URI
+#       value: http://config-server:8888
+# Extra static env vars. ZIPKIN_ENDPOINT points business services at the
+# in-cluster Zipkin collector. Infra services (config/discovery/admin) ignore
+# this — they aren't instrumented for tracing.
+env:
+  - name: ZIPKIN_ENDPOINT
+    value: http://zipkin.monitoring.svc.cluster.local:9411/api/v2/spans
+
+
+# Container port (matches the Spring service's server.port).
+# service.port defaults to this when not set.
+containerPort: 8080
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 0   # 0 = inherit containerPort (handled in template)
+
+# All 8 services expose Spring Boot Actuator on /actuator/health/*
+probes:
+  enabled: true
+  readinessPath: /actuator/health/readiness
+  livenessPath: /actuator/health/liveness
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  failureThreshold: 6
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 80
+
+pdb:
+  enabled: false
+  minAvailable: 1
+
+# ALB ingress — only api-gateway sets enabled: true.
+ingress:
+  enabled: false
+  className: alb
+  annotations: {}
+  host: ""
+  path: /
+  pathType: Prefix
+
+# Prometheus scraping via a ServiceMonitor CRD.
+# Enabled in helm-values/{service}.yaml for the 5 business services (which have
+# micrometer-registry-prometheus on the classpath); kept off for config-server,
+# discovery-server, admin-server which don't expose /actuator/prometheus.
+metrics:
+  enabled: false
+  path: /actuator/prometheus
+  interval: 15s
+  scrapeTimeout: 10s
+
+# Wait-for-dependency init containers. Provide a list, e.g.:
+#   initContainers:
+#     - name: wait-for-config-server
+#       image: busybox:1.36
+#       command: ["sh", "-c", "until nc -z config-server 8888; do sleep 2; done"]
+initContainers: []
+
+# Project-specific secret bindings. The chart knows two patterns:
+#   secrets.rdsCredentials: true → ExternalSecret reads petclinic/{env}/rds-credentials
+#                                  and creates a K8s Secret with SPRING_DATASOURCE_*
+#                                  env vars, which the deployment loads via envFrom.
+#   secrets.openaiApiKey:   true → ExternalSecret reads petclinic/{env}/openai-api-key
+#                                  and creates a K8s Secret with OPENAI_API_KEY.
+secrets:
+  rdsCredentials: false
+  openaiApiKey: false
+
+# Secrets controller config — shared by both secret bindings above.
+externalSecrets:
+  refreshInterval: 1h
+  storeName: aws-secrets-manager
+  storeKind: ClusterSecretStore
+
+serviceAccount:
+  create: true
+  annotations: {}    # set eks.amazonaws.com/role-arn here for IRSA-bound workloads
+  name: ""
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}
+
+# Environment name. helm-values/{env}.yaml overrides this; defaults to dev.
+global:
+  environment: dev

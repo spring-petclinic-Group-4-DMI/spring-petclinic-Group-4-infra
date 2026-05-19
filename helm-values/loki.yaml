@@ -1,0 +1,44 @@
+# grafana/loki-stack values
+# Chart: https://github.com/grafana/helm-charts/tree/main/charts/loki-stack
+#
+# Installs Loki (log store) + Promtail (per-node log shipper) into the
+# monitoring namespace. Grafana from kube-prometheus-stack reads Loki as a
+# datasource via helm-values/monitoring.yaml. Browse logs in Grafana → Explore.
+
+loki:
+  enabled: true
+  isDefault: false   # Prometheus stays the default datasource
+
+  persistence:
+    enabled: true
+    storageClassName: gp2
+    accessModes: [ReadWriteOnce]
+    size: 10Gi
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+  # Defaults are fine: filesystem chunks store, 7-day-ish retention.
+
+promtail:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+# Disable bundled components — kube-prometheus-stack already provides them.
+grafana:
+  enabled: false
+prometheus:
+  enabled: false
+fluent-bit:
+  enabled: false
+filebeat:
+  enabled: false

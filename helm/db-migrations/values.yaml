@@ -1,0 +1,34 @@
+# Defaults for the db-migrations chart.
+# Per-env overrides in helm-values/dev.yaml; CI writes image.tag in helm-values/db-migrations.yaml.
+
+image:
+  registry: "428101261622.dkr.ecr.us-east-2.amazonaws.com"
+  envPrefix: "petclinic-dev"
+  repository: "db-migrations"
+  tag: ""    # CI writes here
+  pullPolicy: IfNotPresent
+
+# Flyway connect-retry params — RDS may not be reachable on the first try
+# after cluster bootstrap.
+flyway:
+  connectRetries: 30
+  connectRetriesInterval: 5
+
+# Job behaviour
+job:
+  backoffLimit: 3
+  ttlSecondsAfterFinished: 300
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    memory: 256Mi
+
+# Secret holding SPRING_DATASOURCE_URL / USERNAME / PASSWORD — materialised
+# by ESO from petclinic/dev/rds-credentials.
+secretName: rds-credentials
+
+global:
+  environment: dev

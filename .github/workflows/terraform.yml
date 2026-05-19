@@ -1,0 +1,190 @@
+# terraform.yml
+#
+# Infrastructure-as-Code automation for petclinic-platform.
+# Dev is the only deployed environment.
+#
+# PR:
+#   fmt -check + init -backend=false + validate. No AWS credentials required.
+#
+# Push to main:
+#   Auto plan + apply.
+#   Apply runs under the "dev" GitHub Environment — add manual reviewers in repo
+#   Settings → Environments → dev if you want a human gate before apply.
+#
+# workflow_dispatch:
+#   Choose action (plan | apply). Use this for targeted re-plans or recovery
+#   after a failed run.
+#
+# Required Secrets:
+#   AWS_ROLE_ARN — OIDC IAM role allowed to manage the petclinic infra
+#
+# No Docker steps. CI never builds, tags, or pushes images from this repo.
+
+name: Terraform
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "terraform/**"
+      - ".github/workflows/terraform.yml"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "plan only, or plan + apply"
+        required: true
+        type: choice
+        options: [plan, apply]
+        default: plan
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+env:
+  TERRAFORM_VERSION: "1.7.5"
+  AWS_REGION: us-east-2
+  TF_WORKDIR: terraform/environments/dev
+
+  # Terraform input variables sourced from GitHub.
+  # Non-sensitive values hardcoded; the OpenAI key comes from a Secret.
+  # The local terraform.tfvars file is gitignored and NOT used by CI — these
+  # env vars take its place.
+  TF_VAR_github_org: spring-petclinic-Group-4-DMI
+  TF_VAR_create_github_oidc_provider: "false"
+  TF_VAR_domain_name: pawscare.online
+  TF_VAR_openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+
+jobs:
+  # ── PR gate: fmt + validate, no AWS auth ────────────────────────────────────
+  validate:
+    if: github.event_name == 'pull_request'
+    name: fmt + validate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKDIR }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: terraform fmt -check
+        run: terraform fmt -check -recursive ../..
+
+      - name: terraform init (no backend)
+        run: terraform init -backend=false
+
+      - name: terraform validate
+        run: terraform validate
+
+  # ── Plan (push to main, or manual dispatch) ─────────────────────────────────
+  plan:
+    if: github.event_name != 'pull_request'
+    name: Plan
+    runs-on: ubuntu-latest
+    environment: dev
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKDIR }}
+    steps:
+      - name: Guard against empty OPENAI_API_KEY
+        # An empty value would diff against the real Secrets Manager value at
+        # plan time, producing a misleading "will replace" entry.
+        run: |
+          if [[ -z "${{ secrets.OPENAI_API_KEY }}" ]]; then
+            echo "::error::OPENAI_API_KEY secret is not set. Set it in repo Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: terraform fmt -check
+        run: terraform fmt -check -recursive ../..
+
+      - name: terraform init
+        run: terraform init
+
+      - name: terraform validate
+        run: terraform validate
+
+      - name: terraform plan
+        run: |
+          terraform plan -input=false -out=tfplan.binary
+          terraform show -no-color tfplan.binary > tfplan.txt
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ github.run_id }}
+          path: |
+            ${{ env.TF_WORKDIR }}/tfplan.binary
+            ${{ env.TF_WORKDIR }}/tfplan.txt
+          retention-days: 14
+
+  # ── Apply (push to main → always; dispatch → only when action=apply) ────────
+  apply:
+    needs: plan
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' && inputs.action == 'apply')
+    name: Apply
+    runs-on: ubuntu-latest
+    environment: dev
+    defaults:
+      run:
+        working-directory: ${{ env.TF_WORKDIR }}
+    steps:
+      - name: Guard against empty OPENAI_API_KEY
+        # If the secret is unset, GH substitutes "" which would silently
+        # overwrite the real value in AWS Secrets Manager. Fail loudly.
+        run: |
+          if [[ -z "${{ secrets.OPENAI_API_KEY }}" ]]; then
+            echo "::error::OPENAI_API_KEY secret is not set. Refusing to apply (would clobber AWS Secrets Manager value with empty string)."
+            exit 1
+          fi
+          echo "OPENAI_API_KEY present (length: ${#OPENAI})"
+        env:
+          OPENAI: ${{ secrets.OPENAI_API_KEY }}
+
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: terraform init
+        run: terraform init
+
+      - name: Download plan from plan job
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-${{ github.run_id }}
+          path: ${{ env.TF_WORKDIR }}/
+
+      - name: terraform apply tfplan.binary
+        run: terraform apply -input=false tfplan.binary
