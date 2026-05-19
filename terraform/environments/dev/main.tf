@@ -73,49 +73,47 @@ provider "kubernetes" {
   }
 }
 
-# ── EKS access entry for the principal running terraform ────────────────────
+# ── EKS access entries — principal-stable ───────────────────────────────────
 # Cluster was created with authentication_mode = API_AND_CONFIG_MAP, which
-# means the creator does NOT automatically get cluster-admin (unlike legacy
-# CONFIG_MAP mode). We need an explicit access entry, otherwise the Helm
-# provider gets "server has asked for the client to provide credentials".
-data "aws_caller_identity" "current" {}
+# means no principal gets automatic cluster-admin. Both the local IAM user
+# (running terraform from a workstation) AND the GitHub Actions OIDC role
+# (running terraform from CI) need an explicit access entry. Listing them
+# both here keeps the plan stable across caller switches.
 
 locals {
-  caller_arn = data.aws_caller_identity.current.arn
-
-  # If terraform is run with an assumed role, caller_arn looks like:
-  #   arn:aws:sts::123456789012:assumed-role/RoleName/SessionName
-  # EKS access entries take the role ARN, not the session ARN. Transform.
-  caller_is_assumed_role = can(regex("^arn:aws:sts::[0-9]+:assumed-role/", local.caller_arn))
-  caller_principal_arn = local.caller_is_assumed_role ? format(
-    "arn:aws:iam::%s:role/%s",
-    data.aws_caller_identity.current.account_id,
-    split("/", local.caller_arn)[1]
-  ) : local.caller_arn
+  cluster_admin_principals = toset([
+    # Local IAM user — add yours here if you also apply from a workstation
+    "arn:aws:iam::428101261622:user/cloud-eng-iac",
+    # GitHub Actions OIDC role — required for CI apply
+    module.github_oidc.role_arns["petclinic-infra-github-actions"],
+  ])
 }
 
-resource "aws_eks_access_entry" "tf_caller" {
+resource "aws_eks_access_entry" "admins" {
+  for_each = local.cluster_admin_principals
+
   cluster_name  = module.eks.cluster_name
-  principal_arn = local.caller_principal_arn
+  principal_arn = each.value
   type          = "STANDARD"
 
   tags = {
-    Purpose = "terraform-local-admin"
+    Purpose = "cluster-admin"
   }
 }
 
-resource "aws_eks_access_policy_association" "tf_caller_admin" {
+resource "aws_eks_access_policy_association" "admins" {
+  for_each = local.cluster_admin_principals
+
   cluster_name  = module.eks.cluster_name
-  principal_arn = local.caller_principal_arn
-  # EKS access policies live under the eks:: ARN namespace, NOT iam:: —
-  # AmazonEKSClusterAdminPolicy is the cluster-wide admin built-in.
+  principal_arn = each.value
+  # EKS access policies live under the eks:: ARN namespace, NOT iam::
   policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
 
   access_scope {
     type = "cluster"
   }
 
-  depends_on = [aws_eks_access_entry.tf_caller]
+  depends_on = [aws_eks_access_entry.admins]
 }
 
 locals {
@@ -222,8 +220,8 @@ module "external_secrets" {
   oidc_provider_arn = module.eks.oidc_provider_arn
 
   depends_on = [
-    module.eks,                                        # node group + EBS CSI add-on Ready
-    aws_eks_access_policy_association.tf_caller_admin, # caller needs cluster-admin so helm provider can install
+    module.eks,                               # node group + EBS CSI add-on Ready
+    aws_eks_access_policy_association.admins, # caller needs cluster-admin so helm provider can install
   ]
 }
 
