@@ -14,8 +14,13 @@ set -euo pipefail
 REGION="${AWS_DEFAULT_REGION:-us-east-2}"
 ENV="dev"
 
-DESIRED_NODES=2
-MAX_NODES=3
+# Sized to match terraform/environments/dev/main.tf (eks module call).
+# The full stack (8 petclinic services + ArgoCD + observability + ALB controller +
+# ESO + db-migrations Job) needs ~6 t4g.small nodes to schedule without hitting
+# the per-node pod-capacity limit. 2 nodes will leave half the pods Pending.
+DESIRED_NODES=6
+MIN_NODES=4
+MAX_NODES=6
 
 CLUSTER_NAME="petclinic-${ENV}"
 NODEGROUP_NAME="petclinic-${ENV}-nodes"
@@ -94,7 +99,7 @@ else
     aws eks update-nodegroup-config \
       --cluster-name "${CLUSTER_NAME}" \
       --nodegroup-name "${NODEGROUP_NAME}" \
-      --scaling-config "minSize=1,maxSize=${MAX_NODES},desiredSize=${DESIRED_NODES}" \
+      --scaling-config "minSize=${MIN_NODES},maxSize=${MAX_NODES},desiredSize=${DESIRED_NODES}" \
       --region "${REGION}" > /dev/null
     echo "  -> Scaling to ${DESIRED_NODES} nodes. Waiting for nodes to join..."
     echo "     (This typically takes 2-5 minutes)"
