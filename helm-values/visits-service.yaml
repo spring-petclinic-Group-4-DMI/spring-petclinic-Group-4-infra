@@ -2,21 +2,16 @@
 
 image:
   service: visits-service
-  tag: ""
-
+  tag: "6b231f6"
 containerPort: 8082
 service:
   port: 8082
-
 springProfiles:
   - docker
-
 mysql:
   enabled: true
-
 secrets:
   rdsCredentials: true
-
 # Wait for upstream deps. customers-service starts first so the pets table FK
 # exists before visits schema init runs (Spring auto-initialises on startup).
 initContainers:
@@ -29,7 +24,6 @@ initContainers:
   - name: wait-for-customers-service
     image: busybox:1.36
     command: ["sh", "-c", "until nc -z customers-service 8081; do echo waiting for customers-service; sleep 2; done"]
-
 # Expose /actuator/prometheus to the kube-prometheus-stack ServiceMonitor selector.
 metrics:
   enabled: true

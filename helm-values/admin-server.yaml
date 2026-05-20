@@ -2,15 +2,12 @@
 
 image:
   service: admin-server
-  tag: ""
-
+  tag: "6b231f6"
 containerPort: 9090
 service:
   port: 9090
-
 springProfiles:
   - docker
-
 initContainers:
   - name: wait-for-config-server
     image: busybox:1.36

@@ -2,15 +2,12 @@
 
 image:
   service: api-gateway
-  tag: ""
-
+  tag: "6b231f6"
 containerPort: 8080
 service:
   port: 8080
-
 springProfiles:
   - docker
-
 initContainers:
   - name: wait-for-config-server
     image: busybox:1.36
@@ -18,7 +15,6 @@ initContainers:
   - name: wait-for-discovery-server
     image: busybox:1.36
     command: ["sh", "-c", "until nc -z discovery-server 8761; do echo waiting for discovery-server; sleep 2; done"]
-
 # Only api-gateway exposes ingress. Override host in helm-values/{env}.yaml once DNS is in place.
 ingress:
   enabled: true
@@ -30,10 +26,9 @@ ingress:
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
     alb.ingress.kubernetes.io/healthcheck-path: /actuator/health
     alb.ingress.kubernetes.io/healthcheck-port: "8080"
-  host: ""        # set in helm-values/{env}.yaml when domain is configured
+  host: "" # set in helm-values/{env}.yaml when domain is configured
   path: /
   pathType: Prefix
-
 # Expose /actuator/prometheus to the kube-prometheus-stack ServiceMonitor selector.
 metrics:
   enabled: true
