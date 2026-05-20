@@ -181,10 +181,36 @@ jobs:
             return 1
           }
 
+          sync_app() {
+            local APP="$1"
+
+            echo "Requesting ArgoCD sync for $APP..."
+            kubectl annotate application "$APP" -n "$ARGOCD_NAMESPACE" \
+              argocd.argoproj.io/refresh=hard \
+              --overwrite >/dev/null 2>&1 || true
+
+            # Automated sync can stop retrying after a prior failed operation.
+            # Setting .operation asks the controller to reconcile this app now.
+            if [[ -z "$(kubectl get application "$APP" -n "$ARGOCD_NAMESPACE" -o jsonpath='{.operation}' 2>/dev/null || true)" ]]; then
+              kubectl patch application "$APP" -n "$ARGOCD_NAMESPACE" --type merge -p '{
+                "operation": {
+                  "initiatedBy": { "username": "github-actions" },
+                  "sync": {
+                    "prune": true,
+                    "syncOptions": ["CreateNamespace=true", "ServerSideApply=true"]
+                  }
+                }
+              }'
+            else
+              echo "ArgoCD operation already in progress for $APP."
+            fi
+          }
+
           apply_if_present() {
             local FILE="$APPS_DIR/$1.yaml"
             if [[ -f "$FILE" ]]; then
               kubectl apply -f "$FILE"
+              sync_app "$1"
             else
               echo "::warning::$FILE missing — skipping $1"
             fi
