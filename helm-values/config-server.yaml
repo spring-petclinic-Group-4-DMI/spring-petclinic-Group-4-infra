@@ -3,14 +3,11 @@
 
 image:
   service: config-server
-  tag: latest
-
+  tag: 6b231f6
 containerPort: 8888
 service:
   port: 8888
-
 springProfiles:
   - docker
-
 # No init containers — this is the upstream dependency for everyone else.
 # No mysql, no external secrets.
