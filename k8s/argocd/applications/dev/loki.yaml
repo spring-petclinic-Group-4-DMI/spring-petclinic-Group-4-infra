@@ -29,6 +29,17 @@ spec:
     server: https://kubernetes.default.svc
     namespace: monitoring
 
+  # The loki-stack chart re-renders volumeClaimTemplates slightly differently
+  # than what the live StatefulSet stores (PVC fields are immutable after
+  # creation anyway). Without this, ArgoCD enters a perpetual self-heal loop
+  # marking StatefulSet/loki OutOfSync every reconciliation.
+  ignoreDifferences:
+    - group: apps
+      kind: StatefulSet
+      name: loki
+      jsonPointers:
+        - /spec/volumeClaimTemplates
+
   syncPolicy:
     automated:
       prune: true

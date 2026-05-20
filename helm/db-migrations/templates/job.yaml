@@ -53,5 +53,9 @@ spec:
               value: "{{ .Values.flyway.connectRetries }}"
             - name: FLYWAY_CONNECT_RETRIES_INTERVAL
               value: "{{ .Values.flyway.connectRetriesInterval }}"
+            - name: FLYWAY_BASELINE_ON_MIGRATE
+              value: "{{ .Values.flyway.baselineOnMigrate }}"
+            - name: FLYWAY_BASELINE_VERSION
+              value: "{{ .Values.flyway.baselineVersion }}"
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

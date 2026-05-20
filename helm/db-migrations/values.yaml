@@ -13,6 +13,14 @@ image:
 flyway:
   connectRetries: 30
   connectRetriesInterval: 5
+  # baselineOnMigrate lets Flyway run against a non-empty schema (e.g. tables
+  # created by Hibernate ddl-auto before Flyway was wired in). Combined with
+  # the IF NOT EXISTS / INSERT IGNORE statements in V*.sql, the first run is
+  # idempotent: it creates flyway_schema_history, marks the baseline, then
+  # applies V1..V6 — existing tables are skipped, missing ones (visits) get
+  # created, seed data is inserted where rows are absent.
+  baselineOnMigrate: true
+  baselineVersion: "0"
 
 # Job behaviour
 job:
