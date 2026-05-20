@@ -6,6 +6,9 @@ image:
 containerPort: 8084
 service:
   port: 8084
+probes:
+  initialDelaySeconds: 180
+  failureThreshold: 12
 springProfiles:
   - docker
 # Flip mysql.enabled + secrets.rdsCredentials on if you decide to back genai with RDS.
