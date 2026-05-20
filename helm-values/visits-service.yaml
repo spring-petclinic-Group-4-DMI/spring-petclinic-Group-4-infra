@@ -12,6 +12,11 @@ mysql:
   enabled: true
 secrets:
   rdsCredentials: true
+env:
+  - name: SPRING_SQL_INIT_MODE
+    value: never
+  - name: ZIPKIN_ENDPOINT
+    value: http://zipkin.monitoring.svc.cluster.local:9411/api/v2/spans
 # Wait for upstream deps. customers-service starts first so the pets table FK
 # exists before visits schema init runs (Spring auto-initialises on startup).
 initContainers:
