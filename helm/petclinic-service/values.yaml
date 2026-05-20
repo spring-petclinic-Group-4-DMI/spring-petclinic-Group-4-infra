@@ -101,17 +101,14 @@ metrics:
 #       command: ["sh", "-c", "until nc -z config-server 8888; do sleep 2; done"]
 initContainers: []
 
-# Project-specific secret bindings. The chart knows two patterns:
-#   secrets.rdsCredentials: true → ExternalSecret reads petclinic/{env}/rds-credentials
-#                                  and creates a K8s Secret with SPRING_DATASOURCE_*
-#                                  env vars, which the deployment loads via envFrom.
-#   secrets.openaiApiKey:   true → ExternalSecret reads petclinic/{env}/openai-api-key
-#                                  and creates a K8s Secret with OPENAI_API_KEY.
+# Project-specific secret bindings. ExternalSecrets are owned centrally by
+# k8s/base/external-secrets and synced before service apps. These booleans only
+# decide whether the Deployment consumes the generated Kubernetes Secrets.
 secrets:
   rdsCredentials: false
   openaiApiKey: false
 
-# Secrets controller config — shared by both secret bindings above.
+# Secrets controller config retained for compatibility with older values files.
 externalSecrets:
   refreshInterval: 1h
   storeName: aws-secrets-manager

@@ -24,8 +24,8 @@ spec:
     spec:
       restartPolicy: OnFailure
       # If rds-credentials Secret doesn't exist when the pod is scheduled,
-      # kubelet keeps retrying until it appears (every ~10s). The chart's
-      # own ExternalSecret should produce it within a few seconds of sync.
+      # kubelet keeps retrying until it appears. ArgoCD applies and waits for
+      # the central ExternalSecret before this Job syncs.
       containers:
         - name: flyway
           image: "{{ .Values.image.registry }}/{{ .Values.image.envPrefix }}/{{ .Values.image.repository }}:{{ .Values.image.tag | default "latest" }}"

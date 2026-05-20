@@ -23,6 +23,11 @@ output "oidc_provider_arn" {
   value       = module.eks.oidc_provider_arn
 }
 
+output "cluster_security_group_id" {
+  description = "EKS-created cluster security group attached to managed node group ENIs"
+  value       = module.eks.cluster_security_group_id
+}
+
 output "ecr_repository_urls" {
   description = "ECR repository URLs keyed by service name"
   value       = module.ecr.repository_urls
@@ -56,6 +61,11 @@ output "karpenter_queue_name" {
 output "karpenter_instance_profile_name" {
   description = "Instance profile for Karpenter-launched nodes"
   value       = module.karpenter.karpenter_instance_profile_name
+}
+
+output "aws_load_balancer_controller_role_arn" {
+  description = "IRSA role ARN used by AWS Load Balancer Controller"
+  value       = module.aws_load_balancer_controller.role_arn
 }
 
 output "route53_name_servers" {

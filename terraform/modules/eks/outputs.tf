@@ -14,6 +14,11 @@ output "cluster_ca_certificate" {
   sensitive   = true
 }
 
+output "cluster_security_group_id" {
+  description = "EKS-created cluster security group attached to managed node group ENIs"
+  value       = aws_eks_cluster.this.vpc_config[0].cluster_security_group_id
+}
+
 output "oidc_provider_arn" {
   description = "IAM OIDC provider ARN (for IRSA)"
   value       = aws_iam_openid_connect_provider.oidc.arn

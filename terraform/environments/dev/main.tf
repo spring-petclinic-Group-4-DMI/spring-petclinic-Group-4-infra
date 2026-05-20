@@ -186,6 +186,19 @@ module "rds" {
   deletion_protection     = false
 }
 
+# Managed node groups receive the EKS-created cluster security group by default.
+# The custom node SG in the VPC module documents the intended perimeter, but it
+# is not attached to nodes unless we use a launch template. Allowing the actual
+# managed-node SG fixes RDS connectivity for migrations and MySQL services.
+resource "aws_vpc_security_group_ingress_rule" "rds_mysql_from_eks_managed_nodes" {
+  security_group_id            = module.vpc.rds_sg_id
+  referenced_security_group_id = module.eks.cluster_security_group_id
+  ip_protocol                  = "tcp"
+  from_port                    = 3306
+  to_port                      = 3306
+  description                  = "MySQL from EKS managed node group ENIs"
+}
+
 module "secrets" {
   source = "../../modules/secrets"
 
@@ -225,6 +238,24 @@ module "external_secrets" {
   depends_on = [
     module.eks,                               # node group + EBS CSI add-on Ready
     aws_eks_access_policy_association.admins, # caller needs cluster-admin so helm provider can install
+  ]
+}
+
+# AWS Load Balancer Controller — reconciles ALB Ingress resources such as the
+# api-gateway ingress. Installed before ArgoCD applications are applied.
+module "aws_load_balancer_controller" {
+  source = "../../modules/aws-load-balancer-controller"
+
+  project           = "petclinic"
+  environment       = local.environment
+  cluster_name      = module.eks.cluster_name
+  vpc_id            = module.vpc.vpc_id
+  aws_region        = var.aws_region
+  oidc_provider_arn = module.eks.oidc_provider_arn
+
+  depends_on = [
+    module.eks,
+    aws_eks_access_policy_association.admins,
   ]
 }
 

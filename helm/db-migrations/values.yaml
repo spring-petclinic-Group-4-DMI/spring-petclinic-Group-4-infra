@@ -26,8 +26,8 @@ resources:
   limits:
     memory: 256Mi
 
-# Secret holding SPRING_DATASOURCE_URL / USERNAME / PASSWORD — materialised
-# by ESO from petclinic/dev/rds-credentials.
+# Secret holding SPRING_DATASOURCE_URL / USERNAME / PASSWORD. It is
+# materialised by k8s/base/external-secrets before this Job syncs.
 secretName: rds-credentials
 
 global:

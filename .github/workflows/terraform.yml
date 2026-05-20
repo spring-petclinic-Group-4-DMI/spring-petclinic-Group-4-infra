@@ -189,3 +189,10 @@ jobs:
 
       - name: terraform apply tfplan.binary
         run: terraform apply -input=false tfplan.binary
+
+  install-argocd:
+    needs: apply
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply'
+    name: Install ArgoCD and sync apps
+    uses: ./.github/workflows/argocd-install.yml
+    secrets: inherit

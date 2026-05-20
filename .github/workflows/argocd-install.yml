@@ -72,6 +72,22 @@ jobs:
           kubectl cluster-info
           kubectl get nodes
 
+      - name: Ensure runtime namespaces and bootstrap secrets
+        run: |
+          set -euo pipefail
+
+          kubectl create namespace "$APP_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+          if kubectl get secret grafana-admin -n monitoring >/dev/null 2>&1; then
+            echo "grafana-admin already exists."
+          else
+            kubectl -n monitoring create secret generic grafana-admin \
+              --from-literal=admin-user=admin \
+              --from-literal=admin-password="$(openssl rand -base64 24)"
+            echo "Created grafana-admin secret."
+          fi
+
       - name: Add Argo Helm repo
         run: |
           helm repo add argo https://argoproj.github.io/argo-helm
@@ -86,7 +102,7 @@ jobs:
           kubectl create namespace "$ARGOCD_NAMESPACE" --dry-run=client -o yaml | kubectl apply -f -
 
           if kubectl get deployment argocd-server -n "$ARGOCD_NAMESPACE" &>/dev/null; then
-            echo "ArgoCD already installed — skipping Helm install."
+            echo "ArgoCD already installed — running Helm upgrade."
           else
             echo "Installing ArgoCD fresh."
 
@@ -103,13 +119,13 @@ jobs:
                 kubectl delete secret -n "$ARGOCD_NAMESPACE" -l "owner=helm,name=argocd" || true
                 ;;
             esac
-
-            helm upgrade --install argocd argo/argo-cd \
-              --namespace "$ARGOCD_NAMESPACE" \
-              --version "$ARGOCD_CHART_VERSION" \
-              -f k8s/argocd/install/values.yaml \
-              --wait --timeout 10m
           fi
+
+          helm upgrade --install argocd argo/argo-cd \
+            --namespace "$ARGOCD_NAMESPACE" \
+            --version "$ARGOCD_CHART_VERSION" \
+            -f k8s/argocd/install/values.yaml \
+            --wait --timeout 10m
 
       # ── Apply AppProjects (optional, skipped if directory absent) ────────────
       - name: Apply ArgoCD AppProjects
@@ -149,6 +165,22 @@ jobs:
             return 1
           }
 
+          wait_app_synced() {
+            local APP="$1"
+            echo "Waiting for $APP to become Synced..."
+            for i in $(seq 1 60); do
+              SYNC=$(kubectl get application "$APP" -n "$ARGOCD_NAMESPACE" \
+                -o jsonpath='{.status.sync.status}' 2>/dev/null || echo Unknown)
+              echo "  attempt $i/60 — sync=$SYNC"
+              if [[ "$SYNC" == "Synced" ]]; then
+                return 0
+              fi
+              sleep 10
+            done
+            kubectl describe application "$APP" -n "$ARGOCD_NAMESPACE" || true
+            return 1
+          }
+
           apply_if_present() {
             local FILE="$APPS_DIR/$1.yaml"
             if [[ -f "$FILE" ]]; then
@@ -159,14 +191,20 @@ jobs:
           }
 
           # -1. ClusterSecretStore — applied before everything so ESO knows
-          # where to read secrets from. ESO itself was installed by terraform.
+          # where to read secrets from. This app also owns the petclinic-dev
+          # ExternalSecrets consumed by db-migrations and application pods.
           apply_if_present external-secrets-store
+          wait_app_synced external-secrets-store
+          kubectl wait --for=condition=Ready clustersecretstore/aws-secrets-manager --timeout=180s
+          kubectl -n "$APP_NAMESPACE" wait --for=condition=Ready externalsecret/rds-credentials --timeout=180s
+          kubectl -n "$APP_NAMESPACE" wait --for=condition=Ready externalsecret/openai-api-key --timeout=180s
 
           # 0. Platform: observability stack — Prometheus+Grafana, Loki, Zipkin.
-          # Applied first but NOT awaited — petclinic services don't require
-          # the observability stack to start, and waiting on the full stack to
-          # be Healthy would add ~5 min per run.
+          # Wait for monitoring sync so ServiceMonitor CRDs exist before any
+          # petclinic-service chart emits ServiceMonitor resources.
           apply_if_present monitoring
+          wait_app_synced monitoring
+          kubectl wait --for=condition=Established crd/servicemonitors.monitoring.coreos.com --timeout=180s
           apply_if_present loki
           apply_if_present zipkin
 
@@ -183,19 +221,22 @@ jobs:
           apply_if_present discovery-server
           wait_app discovery-server
 
-          # 3. Core domain services in parallel
+          # 3. Core domain services. visits-service waits for customers-service
+          # because its API depends on pets owned by customers-service.
           apply_if_present customers-service
-          apply_if_present visits-service
           apply_if_present vets-service
           apply_if_present genai-service
           wait_app customers-service
-          wait_app visits-service
           wait_app vets-service
           wait_app genai-service
+          apply_if_present visits-service
+          wait_app visits-service
 
           # 4. Edge: API gateway + admin dashboard (last — they consume the others)
           apply_if_present api-gateway
           apply_if_present admin-server
+          wait_app api-gateway
+          wait_app admin-server
 
       - name: Print ArgoCD server hostname
         run: |
