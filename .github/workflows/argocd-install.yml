@@ -181,6 +181,22 @@ jobs:
             return 1
           }
 
+          wait_app_healthy() {
+            local APP="$1"
+            echo "Waiting for $APP to become Healthy..."
+            for i in $(seq 1 60); do
+              HEALTH=$(kubectl get application "$APP" -n "$ARGOCD_NAMESPACE" \
+                -o jsonpath='{.status.health.status}' 2>/dev/null || echo Unknown)
+              echo "  attempt $i/60 — health=$HEALTH"
+              if [[ "$HEALTH" == "Healthy" ]]; then
+                return 0
+              fi
+              sleep 10
+            done
+            kubectl describe application "$APP" -n "$ARGOCD_NAMESPACE" || true
+            return 1
+          }
+
           sync_app() {
             local APP="$1"
 
@@ -220,7 +236,11 @@ jobs:
           # where to read secrets from. This app also owns the petclinic-dev
           # ExternalSecrets consumed by db-migrations and application pods.
           apply_if_present external-secrets-store
-          wait_app_synced external-secrets-store
+          # ESO defaults fields on ExternalSecret resources, which can leave the
+          # ArgoCD Application OutOfSync even when the store and generated
+          # Kubernetes Secrets are healthy. Gate this bootstrap step on real
+          # readiness conditions below instead of ArgoCD's diff status.
+          wait_app_healthy external-secrets-store
           kubectl wait --for=condition=Ready clustersecretstore/aws-secrets-manager --timeout=180s
           kubectl -n "$APP_NAMESPACE" wait --for=condition=Ready externalsecret/rds-credentials --timeout=180s
           kubectl -n "$APP_NAMESPACE" wait --for=condition=Ready externalsecret/openai-api-key --timeout=180s

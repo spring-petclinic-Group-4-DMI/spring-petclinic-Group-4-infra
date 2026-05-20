@@ -7,6 +7,9 @@ image:
 containerPort: 8888
 service:
   port: 8888
+probes:
+  readinessPath: /
+  livenessPath: /
 springProfiles:
   - docker
 # No init containers — this is the upstream dependency for everyone else.
