@@ -152,12 +152,12 @@ module "eks" {
   node_sg_id          = module.vpc.eks_node_sg_id
   node_instance_types = ["t4g.small"]
   node_ami_type       = "AL2_ARM_64"
-  # t4g.small max-pods is ~11-17 per node. The full observability + GitOps stack
-  # plus 8 petclinic services pushes well past 30 pods, so the cluster needs ≥4
-  # nodes. (Karpenter would auto-scale this but its K8s operator isn't installed.)
-  node_min_size     = 2
+  # t4g.small max-pods is ~11 per node here. The full observability + GitOps
+  # stack, ALB controller, and 8 petclinic services need 6 nodes to avoid
+  # pod-capacity and memory-pressure failures.
+  node_min_size     = 4
   node_max_size     = 6
-  node_desired_size = 4
+  node_desired_size = 6
   node_disk_size    = 20
 }
 
