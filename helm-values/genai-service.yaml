@@ -2,7 +2,7 @@
 
 image:
   service: genai-service
-  tag: "6b231f6"
+  tag: "b24ca12"
 containerPort: 8084
 service:
   port: 8084
